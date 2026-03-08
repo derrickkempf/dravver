@@ -7,11 +7,27 @@
   "bin": {
     "openclavv": "dist/server.js"
   },
+  "files": [
+    "dist",
+    "src/data"
+  ],
   "scripts": {
     "build": "tsc",
     "start": "node dist/server.js",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build"
   },
+  "keywords": [
+    "mcp",
+    "ai-agents",
+    "visualize-value",
+    "knowledge-base"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jckbtchr-vv/openclavv.git"
+  },
+  "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1"
   },

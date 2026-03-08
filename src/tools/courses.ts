@@ -1,10 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import { readFileSync } from 'fs'
-import { join, dirname } from 'path'
-import { fileURLToPath } from 'url'
-
-const __dirname = dirname(fileURLToPath(import.meta.url))
+import { join } from 'path'
+import { dataDir } from '../paths.js'
 
 type Course = {
   title: string
@@ -17,18 +15,9 @@ let coursesCache: Record<string, Course> | null = null
 
 function loadCourses(): Record<string, Course> {
   if (coursesCache) return coursesCache
-  const candidates = [
-    join(__dirname, '..', 'data', 'courses.json'),
-    join(__dirname, '..', '..', 'src', 'data', 'courses.json'),
-  ]
-  for (const path of candidates) {
-    try {
-      const raw = readFileSync(path, 'utf-8')
-      coursesCache = JSON.parse(raw)
-      return coursesCache!
-    } catch {}
-  }
-  return {}
+  const raw = readFileSync(join(dataDir, 'courses.json'), 'utf-8')
+  coursesCache = JSON.parse(raw)
+  return coursesCache!
 }
 
 const COURSE_KEYS = [

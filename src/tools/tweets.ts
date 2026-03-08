@@ -1,10 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import { readFileSync } from 'fs'
-import { join, dirname } from 'path'
-import { fileURLToPath } from 'url'
-
-const __dirname = dirname(fileURLToPath(import.meta.url))
+import { join } from 'path'
+import { dataDir } from '../paths.js'
 
 type Tweet = {
   id: string
@@ -18,18 +16,9 @@ let tweetsCache: Tweet[] | null = null
 
 function loadTweets(): Tweet[] {
   if (tweetsCache) return tweetsCache
-  const candidates = [
-    join(__dirname, '..', 'data', 'tweet-index.json'),
-    join(__dirname, '..', '..', 'src', 'data', 'tweet-index.json'),
-  ]
-  for (const path of candidates) {
-    try {
-      const raw = readFileSync(path, 'utf-8')
-      tweetsCache = JSON.parse(raw)
-      return tweetsCache!
-    } catch {}
-  }
-  return []
+  const raw = readFileSync(join(dataDir, 'tweet-index.json'), 'utf-8')
+  tweetsCache = JSON.parse(raw)
+  return tweetsCache!
 }
 
 export function registerTweetTools(server: McpServer) {

@@ -1,27 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
-import { readFileSync, readdirSync } from 'fs'
-import { join, dirname } from 'path'
-import { fileURLToPath } from 'url'
-
-const __dirname = dirname(fileURLToPath(import.meta.url))
-const frameworksDir = join(__dirname, '..', 'data', 'frameworks')
-
-// Also works from dist/
-function resolveFrameworksDir(): string {
-  // Try src/data first (dev), then fall back to relative from dist/
-  const candidates = [
-    join(__dirname, '..', 'data', 'frameworks'),
-    join(__dirname, '..', '..', 'src', 'data', 'frameworks'),
-  ]
-  for (const dir of candidates) {
-    try {
-      readdirSync(dir)
-      return dir
-    } catch {}
-  }
-  return candidates[0]
-}
+import { readFileSync } from 'fs'
+import { join } from 'path'
+import { dataDir } from '../paths.js'
 
 const FRAMEWORKS: Record<string, string> = {
   'productization-spectrum': 'productization-spectrum.md',
@@ -55,9 +36,8 @@ export function registerFrameworkTools(server: McpServer) {
     'Get a specific VV framework or mental model. Returns the full framework with explanation, steps, and key insights.',
     { name: z.enum(Object.keys(FRAMEWORKS) as [string, ...string[]]).describe('Framework name') },
     async ({ name }) => {
-      const dir = resolveFrameworksDir()
       const file = FRAMEWORKS[name]
-      const content = readFileSync(join(dir, file), 'utf-8')
+      const content = readFileSync(join(dataDir, 'frameworks', file), 'utf-8')
       return {
         content: [{ type: 'text' as const, text: content }],
       }
