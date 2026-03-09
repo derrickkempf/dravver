@@ -8,10 +8,10 @@ import { registerCourseTools } from './courses.js'
 import { registerProjectTools } from './projects.js'
 
 export function registerTools(server: McpServer) {
-  // Creation tools first — this is the product
+  // The main tool
   registerGenerateTools(server)
 
-  // Reference tools — supporting context
+  // Reference tools
   registerVoiceTool(server)
   registerFrameworkTools(server)
   registerTweetTools(server)
