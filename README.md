@@ -43,6 +43,10 @@ The tool loads a randomized sample of ~250 tweets (top performers, mid-tier, dee
 
 You don't need to know what to look for. The archive surfaces the ideas.
 
+## Learn more
+
+[visualizevalue.com/ghostvvriter](https://visualizevalue.com/ghostvvriter)
+
 ## Built by
 
 [Visualize Value](https://visualizevalue.com) · [Jack Butcher](https://x.com/jackbutcher)
