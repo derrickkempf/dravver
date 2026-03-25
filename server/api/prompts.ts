@@ -1,40 +1,47 @@
-import { readFileSync, writeFileSync } from 'fs'
-import { join } from 'path'
+// server/api/prompts.ts
+// GET  — returns all prompts
+// POST — adds a new prompt from a visitor
 
-const dataPath = join(process.cwd(), 'server/data/prompts.json')
+import defaultPrompts from '../data/prompts.json'
 
-function load() {
-  return JSON.parse(readFileSync(dataPath, 'utf-8'))
+interface Prompt {
+  id: string
+  text: string
+  date: string
+  status: string
+  drawing: string | null
 }
 
-function save(data: unknown[]) {
-  writeFileSync(dataPath, JSON.stringify(data, null, 2))
-}
+// In-memory store — seeded from the JSON file.
+// On Vercel, this resets between cold starts, which is fine for a queue
+// that is managed primarily through the admin panel.
+// For full persistence, swap this with Vercel KV (see README).
+let store: Prompt[] = [...(defaultPrompts as Prompt[])]
+
+export function getStore() { return store }
+export function setStore(data: Prompt[]) { store = data }
 
 export default defineEventHandler(async (event) => {
   const method = event.method
 
-  // GET — return all prompts
   if (method === 'GET') {
-    return load()
+    return store
   }
 
-  // POST — add new prompt from visitor
   if (method === 'POST') {
     const body = await readBody(event)
     const text = (body?.text || '').trim()
     if (!text) throw createError({ statusCode: 400, message: 'text required' })
 
-    const prompts = load()
-    const newPrompt = {
+    const entry: Prompt = {
       id: `p_${Date.now()}`,
       text,
       date: new Date().toISOString().split('T')[0],
       status: 'queued',
       drawing: null,
     }
-    prompts.unshift(newPrompt)
-    save(prompts)
-    return newPrompt
+
+    store.unshift(entry)
+    return entry
   }
 })

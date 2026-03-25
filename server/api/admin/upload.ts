@@ -1,16 +1,9 @@
-import { readFileSync, writeFileSync, mkdirSync } from 'fs'
-import { join } from 'path'
+// server/api/admin/upload.ts
+// PATCH — update prompt status
+// POST  — upload a drawing image → stores in Vercel Blob
 
-const dataPath = join(process.cwd(), 'server/data/prompts.json')
-const drawingsDir = join(process.cwd(), 'public/drawings')
-
-function load() {
-  return JSON.parse(readFileSync(dataPath, 'utf-8')) as Prompt[]
-}
-
-function save(data: Prompt[]) {
-  writeFileSync(dataPath, JSON.stringify(data, null, 2))
-}
+import { put } from '@vercel/blob'
+import { getStore, setStore } from '../prompts'
 
 interface Prompt {
   id: string
@@ -23,30 +16,30 @@ interface Prompt {
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
 
-  // Check admin secret header
+  // Auth check
   const secret = getHeader(event, 'x-admin-secret')
-  if (secret !== config.adminSecret) {
+  if (!secret || secret !== config.adminSecret) {
     throw createError({ statusCode: 401, message: 'Unauthorized' })
   }
 
   const method = event.method
 
-  // PATCH — update status of a prompt
+  // PATCH — update status (and optionally drawing URL) for a prompt
   if (method === 'PATCH') {
     const body = await readBody(event)
     const { id, status, drawing } = body
 
-    const prompts = load()
-    const idx = prompts.findIndex(p => p.id === id)
+    const store = getStore()
+    const idx = store.findIndex((p: Prompt) => p.id === id)
     if (idx === -1) throw createError({ statusCode: 404, message: 'Prompt not found' })
 
-    if (status) prompts[idx].status = status
-    if (drawing) prompts[idx].drawing = drawing
-    save(prompts)
-    return prompts[idx]
+    if (status) store[idx].status = status
+    if (drawing) store[idx].drawing = drawing
+    setStore(store)
+    return store[idx]
   }
 
-  // POST — upload a drawing image (base64) for a prompt
+  // POST — receive a base64 image, upload to Vercel Blob, save URL on prompt
   if (method === 'POST') {
     const body = await readBody(event)
     const { id, imageBase64, mimeType } = body
@@ -55,21 +48,25 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 400, message: 'id and imageBase64 required' })
     }
 
-    const prompts = load()
-    const idx = prompts.findIndex(p => p.id === id)
+    const store = getStore()
+    const idx = store.findIndex((p: Prompt) => p.id === id)
     if (idx === -1) throw createError({ statusCode: 404, message: 'Prompt not found' })
 
-    // Save image to public/drawings/
-    mkdirSync(drawingsDir, { recursive: true })
-    const ext = (mimeType || 'image/jpeg').split('/')[1] || 'jpg'
-    const filename = `${id}.${ext}`
+    // Convert base64 → Buffer → Blob upload
     const buffer = Buffer.from(imageBase64, 'base64')
-    writeFileSync(join(drawingsDir, filename), buffer)
+    const ext = (mimeType || 'image/jpeg').split('/')[1] || 'jpg'
+    const filename = `drawings/${id}.${ext}`
 
-    prompts[idx].drawing = `/drawings/${filename}`
-    prompts[idx].status = 'done'
-    save(prompts)
+    const blob = await put(filename, buffer, {
+      access: 'public',
+      token: config.blobReadWriteToken,
+      contentType: mimeType || 'image/jpeg',
+    })
 
-    return prompts[idx]
+    store[idx].drawing = blob.url
+    store[idx].status = 'done'
+    setStore(store)
+
+    return store[idx]
   }
 })

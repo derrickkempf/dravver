@@ -21,10 +21,15 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
-    // Secret used to protect the admin upload API
-    // Set ADMIN_SECRET in your .env file
-    adminSecret: process.env.ADMIN_SECRET || 'change-this-secret',
+    // Set ADMIN_SECRET and BLOB_READ_WRITE_TOKEN in Vercel environment variables
+    adminSecret: process.env.ADMIN_SECRET || '',
+    blobReadWriteToken: process.env.BLOB_READ_WRITE_TOKEN || '',
     public: {},
+  },
+
+  nitro: {
+    // Ensures Vercel serverless functions work correctly
+    preset: 'vercel',
   },
 
   css: ['~/assets/main.css'],
