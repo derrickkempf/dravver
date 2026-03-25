@@ -56,4 +56,4 @@ public/
 
 ## Built by
 
-[dewd](https://dewd.com)
+[Derrick Kempf](https://derrickkempf.com)
