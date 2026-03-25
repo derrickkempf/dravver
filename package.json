@@ -1,38 +1,16 @@
 {
-  "name": "vvriter",
-  "version": "0.3.6",
-  "description": "Content creation engine for Visualize Value — generates articles, drafts tweets, and creates visual concepts from Jack Butcher's archive",
+  "name": "dravver",
+  "private": true,
   "type": "module",
-  "main": "dist/server.js",
-  "bin": {
-    "vvriter": "dist/server.js"
-  },
-  "files": [
-    "dist",
-    "src/data"
-  ],
   "scripts": {
-    "build": "tsc",
-    "start": "node dist/server.js",
-    "dev": "tsc --watch",
-    "prepublishOnly": "npm run build"
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
   },
-  "keywords": [
-    "mcp",
-    "ai-agents",
-    "visualize-value",
-    "knowledge-base"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/visualizevalue/vvriter.git"
-  },
-  "license": "MIT",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.12.1"
-  },
-  "devDependencies": {
-    "@types/node": "^22.0.0",
-    "typescript": "^5.7.0"
+    "nuxt": "^3.15.0",
+    "vue": "^3.5.0"
   }
 }

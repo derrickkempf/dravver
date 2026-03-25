@@ -1,0 +1,23 @@
+[
+  {
+    "id": "p_001",
+    "text": "sell your sawdust",
+    "date": "2025-03-18",
+    "status": "done",
+    "drawing": null
+  },
+  {
+    "id": "p_002",
+    "text": "build once, sell twice",
+    "date": "2025-03-21",
+    "status": "progress",
+    "drawing": null
+  },
+  {
+    "id": "p_003",
+    "text": "the moat is the person, not the file",
+    "date": "2025-03-23",
+    "status": "queued",
+    "drawing": null
+  }
+]

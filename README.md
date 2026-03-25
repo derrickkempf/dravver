@@ -1,60 +1,59 @@
-# vvriter
+# dravver — site
 
-Content creation engine for [Visualize Value](https://visualizevalue.com). An MCP server that generates articles from Jack Butcher's tweet archive and visual library.
+Landing page for dravver. Built with Nuxt 3.
 
-No searching. No setup. Connect it and say "write me an article."
-
-## Why
-
-AI is writing articles about our ideas whether we participate or not. So we built the source material — 50,000 tweets, 400 visuals, and an exact writing profile — into a tool anyone can plug into their AI agent. The output sounds like us because it's built from us.
-
-## Install
+## Setup
 
 ```bash
-npx vvriter
+cp .env.example .env
+# edit .env and set ADMIN_SECRET to something only you know
+
+npm install
+npm run dev
 ```
 
-### Claude Code
+## Adding your photo
+
+Drop `avatar.jpg` in the `public/` folder. It shows up in the "meet your agent" circle automatically.
+
+## Admin: uploading drawings
+
+Go to `/admin` in the browser. Enter your `ADMIN_SECRET`. From there you can:
+
+- See all queued prompts
+- Change status (Queued → In Progress → Delivered)
+- Upload a drawing image for any prompt
+- The image saves to `public/drawings/` and shows up on the main page
+
+Keep your `ADMIN_SECRET` private. Don't commit `.env`.
+
+## Deploy
+
+Works on Vercel, Netlify, Railway, or any Node host.
 
 ```bash
-claude mcp add vvriter -- npx vvriter
+npm run build
+npm run preview
 ```
 
-### Claude Desktop
+## Structure
 
-Add to `claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "vvriter": {
-      "command": "npx",
-      "args": ["vvriter"]
-    }
-  }
-}
 ```
-
-## How it works
-
-One command: `vvriter`
-
-1. Call `vvriter` with no arguments
-2. Pick from 3 article concepts
-3. Article saves to `~/vvriter/` and opens in your browser
-
-The tool loads a randomized sample of ~250 tweets (top performers, mid-tier, deep cuts) alongside ~150 VV visuals. The AI finds the interesting idea clusters. Every call shuffles the sample — you never get the same suggestions twice.
-
-You don't need to know what to look for. The archive surfaces the ideas.
-
-## Learn more
-
-[visualizevalue.com/vvriter](https://visualizevalue.com/vvriter)
+pages/
+  index.vue       ← public landing page
+  admin.vue       ← protected drawing upload panel
+server/
+  api/
+    prompts.ts    ← GET all prompts / POST new prompt
+    admin/
+      upload.ts   ← PATCH status / POST drawing (secret-gated)
+  data/
+    prompts.json  ← prompt queue (flat file store)
+public/
+  drawings/       ← uploaded drawings live here
+  avatar.jpg      ← your profile photo (add this)
+```
 
 ## Built by
 
-[Visualize Value](https://visualizevalue.com) · [Jack Butcher](https://x.com/jackbutcher)
-
-## License
-
-MIT
+[dewd](https://dewd.com)
