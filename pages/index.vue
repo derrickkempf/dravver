@@ -79,7 +79,7 @@
 
     <footer>
       <div class="agent-avatar">
-        <img src="/dk-avatar.png" alt="Derrick Kempf" @error="imgError = true" :style="imgError ? 'display:none' : ''" />
+        <img src="/avatar.jpg" alt="Derrick Kempf" @error="imgError = true" :style="imgError ? 'display:none' : ''" />
         <svg v-if="imgError" width="22" height="22" viewBox="0 0 24 24" fill="none">
           <path d="M12 2 C13 1.7, 18 2.2, 20.8 5.8 C23.2 8.9, 23 13.8, 21.3 17.2 C19.2 21.5, 15 23.5, 12 22.5 C6.5 21, 1.8 16, 2 12 C2.2 6.2, 6.8 2.3, 12 2"
             stroke="rgba(255,255,255,0.28)" stroke-width="1.1" fill="none" stroke-linecap="round"/>
