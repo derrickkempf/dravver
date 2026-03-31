@@ -8,7 +8,7 @@ You type the prompt. I draw it. By hand. You'll get it when you get it.
 
 ## Why
 
-AI is generating graphics whether we participate or not. So I built the alternative (based off of Jack Butcher's vvriter) ... one input field, one human, and a response time that is best described as "organic." The output looks like it's made by hand because it IS made by hand.
+AI is generating graphics whether we participate or not. So we built the alternative — one input field, one human, and a response time that is best described as "organic." The output looks like Derrick Kempf because it's made by Derrick Kempf.
 
 No API. No model. No latency optimizations.
 
@@ -38,6 +38,79 @@ Pulls from the Visualize Value visual library — 400+ black-and-white graphics 
 Same concept. Different hand. The box becomes a sketch. The arrow gets a little wobbly. The insight stays.
 
 The original said something with geometry. This version says the same thing but it looks like someone drew it while thinking about it, which is because someone did.
+
+---
+
+## Install
+
+```
+submit a prompt
+wait
+```
+
+No `npx`. No config file. No MCP server.
+
+You can add it to Claude Desktop if you want. It won't do anything. Claude doesn't have my hands.
+
+---
+
+## Setup (for development)
+
+```bash
+cp .env.example .env
+# fill in ADMIN_SECRET and BLOB_READ_WRITE_TOKEN
+
+npm install
+npm run dev
+```
+
+---
+
+## Deploy to Vercel
+
+### 1. Add environment variables
+
+In Vercel → your project → **Settings → Environment Variables**, add:
+
+| Key | Value |
+|-----|-------|
+| `ADMIN_SECRET` | a secret only you know |
+| `BLOB_READ_WRITE_TOKEN` | from Vercel Blob (see step 2) |
+
+### 2. Set up Vercel Blob (for image uploads)
+
+Vercel's filesystem is read-only in production, so drawings are stored in Vercel Blob — a simple, free object store.
+
+1. Go to [vercel.com/dashboard](https://vercel.com/dashboard) → **Storage** tab
+2. Click **Create** → choose **Blob**
+3. Name it `dravver-drawings` (or anything)
+4. Click **Connect to Project** and select your dravver project
+5. Go to the Blob store → **.env.local** tab → copy `BLOB_READ_WRITE_TOKEN`
+6. Paste it into your Vercel environment variables
+
+### 3. Set build settings
+
+In Vercel → **Settings → General → Build & Development Settings**:
+
+- **Framework Preset**: `Nuxt.js`
+- **Build Command**: `npm run build`
+- **Install Command**: `npm install`
+
+### 4. Redeploy
+
+Push any change to `main` or hit **Redeploy** in the Vercel dashboard. It should build clean.
+
+---
+
+## Admin: uploading drawings
+
+Go to `/admin` in your browser. Enter your `ADMIN_SECRET`. From there you can:
+
+- See all queued prompts
+- Update status: Queued → In Progress → Delivered
+- Upload a finished drawing — it goes straight to Vercel Blob and shows up on the main page
+
+Keep your `ADMIN_SECRET` private. Don't commit `.env`.
 
 ---
 
