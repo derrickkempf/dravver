@@ -5,8 +5,10 @@
       <div class="logo">
         <div class="logo-mark">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path d="M7 1 C7.6 0.8, 11.2 1.1, 12.8 3.8 C14.1 6, 13.9 9.4, 12.2 11.3 C10.3 13.4, 7.4 13.8, 5.2 12.8 C2.4 11.5, 0.8 8.3, 1 5.8 C1.3 2.5, 3.8 1.2, 7 1"
-              stroke="rgba(255,255,255,0.6)" stroke-width="1.1" fill="none" stroke-linecap="round"/>
+            <path
+              d="M7 1 C7.6 0.8, 11.2 1.1, 12.8 3.8 C14.1 6, 13.9 9.4, 12.2 11.3 C10.3 13.4, 7.4 13.8, 5.2 12.8 C2.4 11.5, 0.8 8.3, 1 5.8 C1.3 2.5, 3.8 1.2, 7 1"
+              stroke="rgba(255,255,255,0.6)" stroke-width="1.1" fill="none" stroke-linecap="round"
+            />
           </svg>
         </div>
         <span class="logo-name">Dravver</span>
@@ -15,11 +17,12 @@
     </header>
 
     <div class="hero">
-      <h1>What shall I dravv?</h1>
+      <h1>What can I dravv?</h1>
+
       <label class="pill-search" :class="{ focused: inputFocused }">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.6" stroke-linecap="round">
-          <circle cx="6.5" cy="6.5" r="5"/>
-          <line x1="10.5" y1="10.5" x2="14.5" y2="14.5"/>
+          <circle cx="6.5" cy="6.5" r="5" />
+          <line x1="10.5" y1="10.5" x2="14.5" y2="14.5" />
         </svg>
         <input
           v-model="prompt"
@@ -35,15 +38,16 @@
           class="pill-arrow"
           :class="{ active: prompt.trim() }"
           :disabled="!prompt.trim()"
-          @click="submit"
           aria-label="Submit"
+          @click="submit"
         >
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="3" y1="8" x2="13" y2="8"/>
-            <polyline points="9,4 13,8 9,12"/>
+            <line x1="3" y1="8" x2="13" y2="8" />
+            <polyline points="9,4 13,8 9,12" />
           </svg>
         </button>
       </label>
+
       <Transition name="conf">
         <p v-if="confirmation" class="confirmation">{{ confirmation }}</p>
       </Transition>
@@ -79,13 +83,14 @@
 
     <footer>
       <div class="agent-avatar">
-        <!-- Drop avatar.jpg in /public to replace this placeholder -->
-        <img src="public/avatar.jpg" alt="Derrick Kempf" />
-          <path d="M12 2 C13 1.7, 18 2.2, 20.8 5.8 C23.2 8.9, 23 13.8, 21.3 17.2 C19.2 21.5, 15 23.5, 12 22.5 C6.5 21, 1.8 16, 2 12 C2.2 6.2, 6.8 2.3, 12 2"
-            stroke="rgba(255,255,255,0.28)" stroke-width="1.1" fill="none" stroke-linecap="round"/>
-          <circle cx="9" cy="10.5" r="0.9" fill="rgba(255,255,255,0.28)"/>
-          <circle cx="15" cy="10.5" r="0.9" fill="rgba(255,255,255,0.28)"/>
-          <path d="M9 16 Q12 18.5 15 16" stroke="rgba(255,255,255,0.28)" stroke-width="0.9" fill="none" stroke-linecap="round"/>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M12 2 C13 1.7, 18 2.2, 20.8 5.8 C23.2 8.9, 23 13.8, 21.3 17.2 C19.2 21.5, 15 23.5, 12 22.5 C6.5 21, 1.8 16, 2 12 C2.2 6.2, 6.8 2.3, 12 2"
+            stroke="rgba(255,255,255,0.28)" stroke-width="1.1" fill="none" stroke-linecap="round"
+          />
+          <circle cx="9" cy="10.5" r="0.9" fill="rgba(255,255,255,0.28)" />
+          <circle cx="15" cy="10.5" r="0.9" fill="rgba(255,255,255,0.28)" />
+          <path d="M9 16 Q12 18.5 15 16" stroke="rgba(255,255,255,0.28)" stroke-width="0.9" fill="none" stroke-linecap="round" />
         </svg>
       </div>
       <span class="agent-label">meet your agent</span>
@@ -106,7 +111,6 @@ interface Prompt {
 const prompt = ref('')
 const inputFocused = ref(false)
 const confirmation = ref('')
-
 let confTimer: ReturnType<typeof setTimeout> | null = null
 
 const { data, refresh } = await useFetch<Prompt[]>('/api/prompts')
@@ -142,7 +146,7 @@ function formatDate(d: string) {
 }
 
 function statusLabel(s: string) {
-  return { queued: 'Queued', progress: 'In progress', done: 'Delivered' }[s] ?? s
+  return ({ queued: 'Queued', progress: 'In progress', done: 'Delivered' } as Record<string, string>)[s] ?? s
 }
 </script>
 
@@ -158,7 +162,9 @@ function statusLabel(s: string) {
 }
 
 header {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 18px 0 16px;
   border-bottom: 1px solid rgba(255,255,255,0.08);
   flex-shrink: 0;
@@ -246,17 +252,28 @@ h1 {
 
 .prompt-list { display: flex; flex-direction: column; }
 
-.prompt-item { display: flex; gap: 14px; padding: 16px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.prompt-item {
+  display: flex; gap: 14px;
+  padding: 16px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
 .prompt-item:last-child { border-bottom: none; }
 
-.status-dot { width: 7px; height: 7px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+.status-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%; margin-top: 5px; flex-shrink: 0;
+}
+
 .status-dot.queued   { background: rgba(255,255,255,0.2); }
 .status-dot.progress { background: rgba(255,255,255,0.6); }
 .status-dot.done     { background: #fff; }
 
 .prompt-body { flex: 1; min-width: 0; }
 
-.prompt-text { font-size: 0.95rem; color: rgba(255,255,255,0.85); line-height: 1.4; }
+.prompt-text {
+  font-size: 0.95rem; color: rgba(255,255,255,0.85); line-height: 1.4;
+}
 
 .prompt-meta { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
 
@@ -267,6 +284,7 @@ h1 {
   letter-spacing: 0.07em; text-transform: uppercase;
   padding: 2px 8px; border-radius: 999px; border: 1px solid;
 }
+
 .prompt-badge.queued   { color: rgba(255,255,255,0.3);  border-color: rgba(255,255,255,0.12); }
 .prompt-badge.progress { color: rgba(255,255,255,0.65); border-color: rgba(255,255,255,0.35); }
 .prompt-badge.done     { color: #fff; border-color: rgba(255,255,255,0.5); }
@@ -284,7 +302,10 @@ h1 {
 }
 
 .prompt-result-img { width: 100%; border-radius: 6px; display: block; }
-.prompt-result-placeholder { font-size: 0.75rem; color: rgba(255,255,255,0.2); letter-spacing: 0.03em; }
+
+.prompt-result-placeholder {
+  font-size: 0.75rem; color: rgba(255,255,255,0.2); letter-spacing: 0.03em;
+}
 
 .empty-state { padding: 32px 0; }
 .empty-state p { font-size: 0.75rem; color: rgba(255,255,255,0.18); line-height: 1.8; }
@@ -320,6 +341,6 @@ header  { animation: up 0.4s ease 0.04s both; }
 .recent { animation: up 0.4s ease 0.18s both; }
 footer  { animation: up 0.4s ease 0.26s both; }
 
-@media (min-width: 768px) { .page { padding: 0 48px; } }
+@media (min-width: 768px)  { .page { padding: 0 48px; } }
 @media (min-width: 1024px) { .page { padding: 0 64px; } }
 </style>
