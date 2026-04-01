@@ -17,7 +17,7 @@
     </header>
 
     <div class="hero">
-      <h1>What can I dravv?</h1>
+      <h1>What shall I dravv?</h1>
 
       <label class="pill-search" :class="{ focused: inputFocused }">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.6" stroke-linecap="round">
