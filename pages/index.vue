@@ -318,7 +318,7 @@ footer {
 
 .agent-avatar img { width: 100%; height: 100%; object-fit: cover; }
 
-.agent-label { font-size: 0.6rem; color: rgba(255,255,255,0.2); letter-spacing: 0.1em; }
+.agent-label { font-size: 0.6rem; color: rgba(255,255,255,0.4); letter-spacing: 0.1em; }
 
 .list-enter-active { transition: all 0.3s ease; }
 .list-enter-from   { opacity: 0; transform: translateY(-6px); }
