@@ -1,6 +1,6 @@
 # dravver
 
-A drawing engine for [Derrick Kempf](https://www.derrickkempf.com). A satirical fork of [vvriter](https://github.com/visualizevalue/vvriter).
+A drawing engine for Visualize Value [Derrick Kempf](https://www.derrickkempf.com). A satirical fork of [vvriter](https://github.com/visualizevalue/vvriter).
 
 You type the prompt. I draw it. By hand. You'll get it when you get it.
 
