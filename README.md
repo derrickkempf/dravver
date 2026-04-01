@@ -1,6 +1,6 @@
 # dravver
 
-A drawing engine for Visualize Value [Derrick Kempf](https://www.derrickkempf.com). A satirical fork of [vvriter](https://github.com/visualizevalue/vvriter).
+A drawing prompt engine for [Derrick Kempf](https://www.derrickkempf.com). A satirical fork of [vvriter](https://github.com/visualizevalue/vvriter).
 
 You type the prompt. I draw it. By hand. You'll get it when you get it.
 
@@ -8,7 +8,7 @@ You type the prompt. I draw it. By hand. You'll get it when you get it.
 
 ## Why
 
-AI is generating graphics whether we participate or not. So we built the alternative — one input field, one human, and a response time that is best described as "organic." The output looks like Derrick Kempf because it's made by Derrick Kempf.
+AI is generating graphics whether we participate or not. So I built the alternative ... one input field, one human, and a response time that is best described as "organic." The output looks like Derrick Kempf because it's made by Derrick Kempf.
 
 No API. No model. No latency optimizations.
 
