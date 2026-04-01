@@ -80,7 +80,7 @@
     <footer>
       <div class="agent-avatar">
         <!-- Drop avatar.jpg in /public to replace this placeholder -->
-        <img src="/avatar.jpg" alt="Derrick Kempf" />
+        <img src="public/avatar.jpg" alt="Derrick Kempf" />
           <path d="M12 2 C13 1.7, 18 2.2, 20.8 5.8 C23.2 8.9, 23 13.8, 21.3 17.2 C19.2 21.5, 15 23.5, 12 22.5 C6.5 21, 1.8 16, 2 12 C2.2 6.2, 6.8 2.3, 12 2"
             stroke="rgba(255,255,255,0.28)" stroke-width="1.1" fill="none" stroke-linecap="round"/>
           <circle cx="9" cy="10.5" r="0.9" fill="rgba(255,255,255,0.28)"/>
