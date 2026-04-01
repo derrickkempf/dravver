@@ -83,15 +83,7 @@
 
     <footer>
       <div class="agent-avatar">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-          <path
-            d="M12 2 C13 1.7, 18 2.2, 20.8 5.8 C23.2 8.9, 23 13.8, 21.3 17.2 C19.2 21.5, 15 23.5, 12 22.5 C6.5 21, 1.8 16, 2 12 C2.2 6.2, 6.8 2.3, 12 2"
-            stroke="rgba(255,255,255,0.28)" stroke-width="1.1" fill="none" stroke-linecap="round"
-          />
-          <circle cx="9" cy="10.5" r="0.9" fill="rgba(255,255,255,0.28)" />
-          <circle cx="15" cy="10.5" r="0.9" fill="rgba(255,255,255,0.28)" />
-          <path d="M9 16 Q12 18.5 15 16" stroke="rgba(255,255,255,0.28)" stroke-width="0.9" fill="none" stroke-linecap="round" />
-        </svg>
+        <img src="public/avatar.jpg" alt="Derrick Kempf" />
       </div>
       <span class="agent-label">meet your agent</span>
     </footer>
