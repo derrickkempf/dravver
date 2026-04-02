@@ -1,22 +1,16 @@
 // server/api/admin/upload.ts
 // PATCH — update prompt status
-// POST  — upload a drawing image → stores in Vercel Blob
+// POST  — upload drawing image → Vercel Blob, URL saved in Upstash Redis
+//
+// Protected by x-admin-secret header.
 
 import { put } from '@vercel/blob'
-import { getStore, setStore } from '../prompts'
-
-interface Prompt {
-  id: string
-  text: string
-  date: string
-  status: string
-  drawing: string | null
-}
+import { load, save } from '../prompts'
+import type { Prompt } from '../prompts'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
 
-  // Auth check
   const secret = getHeader(event, 'x-admin-secret')
   if (!secret || secret !== config.adminSecret) {
     throw createError({ statusCode: 401, message: 'Unauthorized' })
@@ -24,22 +18,25 @@ export default defineEventHandler(async (event) => {
 
   const method = event.method
 
-  // PATCH — update status (and optionally drawing URL) for a prompt
+  // PATCH — update status
   if (method === 'PATCH') {
     const body = await readBody(event)
     const { id, status, drawing } = body
 
-    const store = getStore()
-    const idx = store.findIndex((p: Prompt) => p.id === id)
+    // Allow test ping from admin auth check
+    if (id === '__test__') return { ok: true }
+
+    const prompts = await load()
+    const idx = prompts.findIndex((p: Prompt) => p.id === id)
     if (idx === -1) throw createError({ statusCode: 404, message: 'Prompt not found' })
 
-    if (status) store[idx].status = status
-    if (drawing) store[idx].drawing = drawing
-    setStore(store)
-    return store[idx]
+    if (status)  prompts[idx].status  = status
+    if (drawing) prompts[idx].drawing = drawing
+    await save(prompts)
+    return prompts[idx]
   }
 
-  // POST — receive a base64 image, upload to Vercel Blob, save URL on prompt
+  // POST — upload image to Vercel Blob, save URL to Redis
   if (method === 'POST') {
     const body = await readBody(event)
     const { id, imageBase64, mimeType } = body
@@ -48,11 +45,10 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 400, message: 'id and imageBase64 required' })
     }
 
-    const store = getStore()
-    const idx = store.findIndex((p: Prompt) => p.id === id)
+    const prompts = await load()
+    const idx = prompts.findIndex((p: Prompt) => p.id === id)
     if (idx === -1) throw createError({ statusCode: 404, message: 'Prompt not found' })
 
-    // Convert base64 → Buffer → Blob upload
     const buffer = Buffer.from(imageBase64, 'base64')
     const ext = (mimeType || 'image/jpeg').split('/')[1] || 'jpg'
     const filename = `drawings/${id}.${ext}`
@@ -63,10 +59,10 @@ export default defineEventHandler(async (event) => {
       contentType: mimeType || 'image/jpeg',
     })
 
-    store[idx].drawing = blob.url
-    store[idx].status = 'done'
-    setStore(store)
+    prompts[idx].drawing = blob.url
+    prompts[idx].status  = 'done'
+    await save(prompts)
 
-    return store[idx]
+    return prompts[idx]
   }
 })
