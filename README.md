@@ -8,7 +8,7 @@ You type the prompt. I draw it. By hand. You'll get it when you get it.
 
 ## Why
 
-AI is generating graphics whether we participate or not. So I built the alternative ... one input field, one human, and a response time that is best described as "organic." The output looks like Derrick Kempf because it's made by Derrick Kempf.
+AI is generating graphics whether we participate or not. So I built the alternative ... one input field, one human, and a response time that is best described as "organic." The output looks like some mediocre artist who's abandoned their formal training drew it. And that artist is some dewd named Derrick Kempf.
 
 No API. No model. No latency optimizations.
 
@@ -33,7 +33,7 @@ This is not a bug. This is the feature. The feature is a human being.
 
 ### Mode 2: VV → Derrick Kempf
 
-Pulls from the Visualize Value visual library — 400+ black-and-white graphics built on boxes, arrows, and compressed ideas — and remakes them in the Derrick Kempf illustration style.
+Pulls from the Visualize Value visual library — 400+ black-and-white graphics built on boxes, arrows, and compressed ideas — and then remade in the Derrick's illustration style.
 
 Same concept. Different hand. The box becomes a sketch. The arrow gets a little wobbly. The insight stays.
 
