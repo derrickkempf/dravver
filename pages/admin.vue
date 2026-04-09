@@ -1,71 +1,93 @@
 <template>
-  <div class="admin-page">
+  <div class="page">
 
-    <header>
-      <div class="logo">
-        <div class="logo-mark">
+    <!-- NAV -->
+    <nav>
+      <div class="nav-inner">
+        <a href="/" class="nav-logo" aria-label="Home">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path d="M7 1 C7.6 0.8, 11.2 1.1, 12.8 3.8 C14.1 6, 13.9 9.4, 12.2 11.3 C10.3 13.4, 7.4 13.8, 5.2 12.8 C2.4 11.5, 0.8 8.3, 1 5.8 C1.3 2.5, 3.8 1.2, 7 1"
               stroke="currentColor" stroke-width="1.1" fill="none" stroke-linecap="round"/>
           </svg>
-        </div>
-        <span class="logo-name">Dravver</span>
-      </div>
-      <span class="header-tag">admin</span>
-    </header>
-
-    <!-- AUTH GATE -->
-    <div v-if="!authed" class="auth-gate">
-      <p class="gate-label">enter secret to continue</p>
-      <label class="pill-search">
-        <input v-model="secretInput" type="password" placeholder="secret..." autocomplete="off" @keydown.enter="unlock" />
-        <button class="pill-arrow" @click="unlock">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="3" y1="8" x2="13" y2="8"/><polyline points="9,4 13,8 9,12"/>
-          </svg>
-        </button>
-      </label>
-      <p v-if="authError" class="auth-error">{{ authError }}</p>
-    </div>
-
-    <!-- ADMIN PANEL -->
-    <div v-else class="admin-body">
-      <p class="section-label">Queue</p>
-      <div v-if="loading" class="loading">loading...</div>
-      <div v-else class="prompt-list">
-        <div v-for="item in prompts" :key="item.id" class="prompt-card">
-          <div class="card-top">
-            <div class="card-info">
-              <span class="status-dot" :class="item.status"></span>
-              <span class="card-text">{{ item.text }}</span>
-            </div>
-            <div class="card-meta">
-              <span class="card-date">{{ item.date }}</span>
-              <select class="status-select" :value="item.status" @change="updateStatus(item.id, ($event.target as HTMLSelectElement).value)">
-                <option value="queued">Queued</option>
-                <option value="progress">In progress</option>
-                <option value="done">Delivered</option>
-              </select>
-            </div>
-          </div>
-          <div class="card-upload">
-            <img v-if="item.drawing" :src="item.drawing" class="existing-drawing" :alt="item.text" />
-            <label class="upload-label" :class="{ 'has-file': uploadFiles[item.id] }">
-              <input type="file" accept="image/*" class="file-input" @change="onFileSelect(item.id, $event)" />
-              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-                <line x1="8" y1="2" x2="8" y2="11"/><polyline points="4,6 8,2 12,6"/>
-                <line x1="2" y1="14" x2="14" y2="14"/>
-              </svg>
-              <span>{{ uploadFiles[item.id] ? uploadFiles[item.id]!.name : (item.drawing ? 'replace' : 'upload drawing') }}</span>
-            </label>
-            <button v-if="uploadFiles[item.id]" class="upload-btn" :class="{ loading: uploading[item.id] }" @click="uploadDrawing(item.id)">
-              {{ uploading[item.id] ? 'uploading...' : 'save ↵' }}
-            </button>
-          </div>
-          <p v-if="feedback[item.id]" class="card-feedback">{{ feedback[item.id] }}</p>
+        </a>
+        <div class="nav-links">
+          <span class="nav-brand">Dravver</span>
+          <span class="nav-tag">Admin</span>
         </div>
       </div>
-    </div>
+    </nav>
+
+    <main>
+      <!-- AUTH GATE -->
+      <div v-if="!authed" class="auth-container">
+        <h1>Admin</h1>
+        <p class="subtitle">Enter secret to continue</p>
+        <div class="form-fields">
+          <div class="field">
+            <label for="secret">Secret</label>
+            <input
+              id="secret"
+              v-model="secretInput"
+              type="password"
+              placeholder="secret..."
+              autocomplete="off"
+              @keydown.enter="unlock"
+            />
+          </div>
+          <button class="submit-btn" @click="unlock">Unlock</button>
+        </div>
+        <p v-if="authError" class="auth-error">{{ authError }}</p>
+      </div>
+
+      <!-- ADMIN PANEL -->
+      <div v-else class="admin-container">
+        <h1>Queue</h1>
+        <p class="subtitle">Manage prompts and upload drawings.</p>
+
+        <div v-if="loading" class="loading-state">loading...</div>
+
+        <div v-else class="prompt-list">
+          <div v-for="item in prompts" :key="item.id" class="prompt-card">
+            <div class="card-top">
+              <div class="card-info">
+                <span class="card-text">{{ item.text }}</span>
+              </div>
+              <div class="card-meta">
+                <span class="card-date">{{ item.date }}</span>
+                <select class="status-select" :value="item.status" @change="updateStatus(item.id, ($event.target as HTMLSelectElement).value)">
+                  <option value="queued">Queued</option>
+                  <option value="progress">In progress</option>
+                  <option value="done">Delivered</option>
+                </select>
+              </div>
+            </div>
+            <div class="card-upload">
+              <img v-if="item.drawing" :src="item.drawing" class="existing-drawing" :alt="item.text" />
+              <label class="upload-label" :class="{ 'has-file': uploadFiles[item.id] }">
+                <input type="file" accept="image/*" class="file-input" @change="onFileSelect(item.id, $event)" />
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                  <line x1="8" y1="2" x2="8" y2="11"/><polyline points="4,6 8,2 12,6"/>
+                  <line x1="2" y1="14" x2="14" y2="14"/>
+                </svg>
+                <span>{{ uploadFiles[item.id] ? uploadFiles[item.id]!.name : (item.drawing ? 'replace' : 'upload drawing') }}</span>
+              </label>
+              <button v-if="uploadFiles[item.id]" class="save-btn" :class="{ uploading: uploading[item.id] }" @click="uploadDrawing(item.id)">
+                {{ uploading[item.id] ? 'uploading...' : 'save' }}
+              </button>
+            </div>
+            <p v-if="feedback[item.id]" class="card-feedback">{{ feedback[item.id] }}</p>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer>
+      <div class="footer-inner">
+        <a href="/" class="footer-brand">Dravver</a>
+        <p class="footer-copy">&copy; {{ new Date().getFullYear() }} Dravver</p>
+      </div>
+    </footer>
 
   </div>
 </template>
@@ -95,7 +117,6 @@ async function unlock() {
   } catch (e: unknown) {
     const err = e as { statusCode?: number }
     if (err?.statusCode === 401) { authError.value = 'wrong secret.'; return }
-    // 404 = auth passed, prompt not found — that's fine
   }
   adminSecret.value = secretInput.value
   authed.value = true
@@ -155,143 +176,166 @@ function toBase64(file: File): Promise<string> {
 </script>
 
 <style scoped>
-/* --- Admin Shell --- */
-.admin-page {
+/* --- Page Shell --- */
+.page {
   min-height: 100dvh;
-  background: var(--background);
-  padding: 0 var(--size-6);
-  max-width: var(--content-width);
-  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
 }
 
-/* --- Header --- */
-header {
+/* --- Nav --- */
+nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 50;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, 0.8);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.nav-inner {
+  max-width: var(--content-width);
+  margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--size-4) 0;
-  border-bottom: 1px solid var(--border-color);
+  height: 48px;
+  padding: 0 16px;
 }
 
-.logo { display: flex; align-items: center; gap: var(--size-2); }
+@media (min-width: 640px) { .nav-inner { padding: 0 24px; } }
 
-.logo-mark {
-  width: 28px; height: 28px;
-  border: 1px solid var(--border-color-highlight);
-  border-radius: var(--size-1);
-  display: flex; align-items: center; justify-content: center;
+.nav-logo {
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
 }
 
-.logo-name {
-  font-family: var(--ui-font-family);
-  font-size: var(--ui-font-size);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: var(--letter-spacing-md);
-  text-transform: var(--ui-text-transform);
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-.header-tag {
-  font-family: var(--ui-font-family);
-  font-size: var(--font-xs);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: var(--letter-spacing-lg);
-  text-transform: var(--ui-text-transform);
-  color: var(--gray-z-5);
+.nav-brand {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text);
 }
 
-/* --- Auth Gate --- */
-.auth-gate {
+.nav-tag {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+/* --- Main --- */
+main {
+  flex: 1;
+  padding-top: 96px;
+}
+
+/* --- Auth Container --- */
+.auth-container {
+  max-width: var(--form-width);
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+@media (min-width: 640px) { .auth-container { padding: 0 24px; } }
+
+h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 8px;
+}
+
+.subtitle {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  margin-bottom: 32px;
+}
+
+.form-fields {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: var(--size-4);
-  padding: var(--size-10) 0 0;
+  gap: 16px;
 }
 
-.gate-label {
-  font-family: var(--ui-font-family);
-  font-size: var(--font-xs);
-  color: var(--muted);
-  letter-spacing: var(--letter-spacing-md);
-  text-transform: var(--ui-text-transform);
+.field {
+  display: flex;
+  flex-direction: column;
 }
+
+.field label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text);
+  margin-bottom: 6px;
+}
+
+.field input {
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 0.875rem;
+  color: var(--color-text);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: border-color 0.3s ease;
+}
+
+.field input::placeholder { color: var(--color-text-secondary); }
+.field input:focus { border-color: var(--color-text); }
+
+.submit-btn {
+  align-self: flex-start;
+  padding: 12px 24px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-bg);
+  background: var(--color-accent);
+  border: none;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.submit-btn:hover { background: var(--color-accent-hover); }
 
 .auth-error {
-  font-family: var(--ui-font-family);
-  font-size: var(--font-xs);
-  color: var(--error);
-  letter-spacing: var(--letter-spacing);
+  margin-top: 16px;
+  font-size: 0.875rem;
+  color: var(--color-error);
 }
 
-/* --- Auth Input --- */
-.pill-search {
-  display: flex;
-  align-items: center;
-  gap: var(--size-2);
-  width: 100%;
-  max-width: var(--form-width);
-  padding: var(--size-3) var(--size-3) var(--size-3) var(--size-4);
-  border: 1px solid var(--border-color);
-  border-radius: var(--size-1);
-  cursor: text;
-  background: var(--background);
-  transition: border-color 0.2s ease;
+/* --- Admin Container --- */
+.admin-container {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 0 16px 64px;
 }
 
-.pill-search:focus-within { border-color: var(--border-color-highlight); }
+@media (min-width: 640px) { .admin-container { padding: 0 24px 64px; } }
 
-.pill-search input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  outline: none;
-  font-size: var(--font-sm);
-  color: var(--color);
-  caret-color: var(--color);
-  min-height: 44px;
-}
-
-.pill-search input::placeholder { color: var(--gray-z-5); }
-
-.pill-arrow {
-  width: 36px; height: 36px;
-  border-radius: var(--size-1);
-  border: 1px solid var(--border-color-highlight);
-  background: transparent;
-  color: var(--color);
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease;
-}
-
-.pill-arrow:hover { background: var(--gray-z-1); }
-
-/* --- Admin Body --- */
-.admin-body { padding: var(--size-7) 0; }
-
-.section-label {
-  font-family: var(--ui-font-family);
-  font-size: var(--font-xs);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: var(--letter-spacing-lg);
-  text-transform: var(--ui-text-transform);
-  color: var(--gray-z-4);
-  margin-bottom: var(--size-5);
-}
-
-.loading {
-  font-family: var(--ui-font-family);
-  font-size: var(--font-sm);
-  color: var(--gray-z-4);
-  letter-spacing: var(--letter-spacing);
+.loading-state {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
 }
 
 /* --- Prompt Cards --- */
-.prompt-list { display: flex; flex-direction: column; }
+.prompt-list {
+  display: flex;
+  flex-direction: column;
+}
 
 .prompt-card {
-  padding: var(--size-4) 0;
-  border-bottom: 1px solid var(--border-color);
+  padding: 16px 0;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .prompt-card:last-child { border-bottom: none; }
@@ -300,126 +344,144 @@ header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: var(--size-4);
-  margin-bottom: var(--size-3);
+  gap: 16px;
+  margin-bottom: 12px;
 }
 
 .card-info {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--size-2);
   flex: 1;
   min-width: 0;
 }
 
-.status-dot {
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  margin-top: 6px;
-}
-
-.status-dot.queued   { background: var(--gray-z-4); }
-.status-dot.progress { background: var(--gray-z-7); }
-.status-dot.done     { background: var(--color); }
-
 .card-text {
-  font-size: var(--font-base);
-  color: var(--gray-z-8);
-  line-height: var(--line-height-md);
+  font-size: 0.875rem;
+  color: var(--color-text);
+  line-height: 1.5;
 }
 
 .card-meta {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: var(--size-2);
+  gap: 6px;
   flex-shrink: 0;
 }
 
 .card-date {
-  font-family: var(--ui-font-family);
-  font-size: var(--font-xs);
-  color: var(--gray-z-4);
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
 }
 
 .status-select {
   background: transparent;
-  border: 1px solid var(--border-color);
-  border-radius: var(--size-1);
-  color: var(--gray-z-7);
-  font-family: var(--ui-font-family);
-  font-size: var(--font-xs);
-  letter-spacing: var(--letter-spacing);
-  padding: var(--size-1) var(--size-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-size: 0.75rem;
+  padding: 4px 10px;
   cursor: pointer;
   outline: none;
-  transition: border-color 0.2s ease;
+  transition: border-color 0.3s ease;
 }
 
 .status-select:hover,
-.status-select:focus { border-color: var(--border-color-highlight); }
-.status-select option { background: var(--gray-z-1); color: var(--color); }
+.status-select:focus { border-color: var(--color-text); }
+
+.status-select option {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
 
 /* --- Upload Area --- */
 .card-upload {
   display: flex;
   align-items: center;
-  gap: var(--size-2);
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .existing-drawing {
   width: 48px; height: 48px;
-  border-radius: var(--size-1);
+  border-radius: var(--radius-sm);
   object-fit: cover;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--color-border);
 }
 
 .upload-label {
   display: inline-flex;
   align-items: center;
-  gap: var(--size-2);
-  font-family: var(--ui-font-family);
-  font-size: var(--font-xs);
-  color: var(--gray-z-5);
-  letter-spacing: var(--letter-spacing);
-  border: 1px solid var(--border-color);
-  border-radius: var(--size-1);
-  padding: var(--size-2) var(--size-3);
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
   cursor: pointer;
-  transition: border-color 0.2s ease, color 0.2s ease;
+  transition: border-color 0.3s ease, color 0.3s ease;
 }
 
 .upload-label:hover,
 .upload-label.has-file {
-  border-color: var(--border-color-highlight);
-  color: var(--gray-z-8);
+  border-color: var(--color-text);
+  color: var(--color-text);
 }
 
 .file-input { display: none; }
 
-.upload-btn {
-  font-family: var(--ui-font-family);
-  font-size: var(--font-xs);
-  color: var(--color);
-  letter-spacing: var(--letter-spacing);
-  background: transparent;
-  border: 1px solid var(--border-color-highlight);
-  border-radius: var(--size-1);
-  padding: var(--size-2) var(--size-3);
+.save-btn {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-bg);
+  background: var(--color-accent);
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 8px 16px;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: background 0.3s ease;
 }
 
-.upload-btn:hover { background: var(--gray-z-1); }
-.upload-btn.loading { opacity: 0.5; cursor: default; }
+.save-btn:hover { background: var(--color-accent-hover); }
+.save-btn.uploading { opacity: 0.4; cursor: not-allowed; }
 
 .card-feedback {
-  margin-top: var(--size-2);
-  font-family: var(--ui-font-family);
-  font-size: var(--font-xs);
-  color: var(--muted);
-  letter-spacing: var(--letter-spacing);
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+/* --- Footer --- */
+footer {
+  background: #1d1d1f;
+  color: rgba(255, 255, 255, 0.6);
+  flex-shrink: 0;
+}
+
+.footer-inner {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 32px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+@media (min-width: 640px) {
+  .footer-inner {
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 32px 24px;
+  }
+}
+
+.footer-brand {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #fff;
+  text-decoration: none;
+}
+
+.footer-copy {
+  font-size: 0.75rem;
 }
 </style>

@@ -1,91 +1,93 @@
 <template>
   <div class="page">
 
-    <header>
-      <div class="logo">
-        <div class="logo-mark">
+    <!-- NAV — matches VV fixed nav -->
+    <nav>
+      <div class="nav-inner">
+        <a href="/" class="nav-logo" aria-label="Home">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path
               d="M7 1 C7.6 0.8, 11.2 1.1, 12.8 3.8 C14.1 6, 13.9 9.4, 12.2 11.3 C10.3 13.4, 7.4 13.8, 5.2 12.8 C2.4 11.5, 0.8 8.3, 1 5.8 C1.3 2.5, 3.8 1.2, 7 1"
               stroke="currentColor" stroke-width="1.1" fill="none" stroke-linecap="round"
             />
           </svg>
+        </a>
+        <div class="nav-links">
+          <span class="nav-brand">Dravver</span>
         </div>
-        <span class="logo-name">Dravver</span>
       </div>
-      <span class="header-right">Submit a prompt.<br>Get a drawing back. Eventually.</span>
-    </header>
+    </nav>
 
-    <div class="hero">
-      <h1>What shall I dravv?</h1>
+    <!-- MAIN — form layout matching /visuals/request -->
+    <main>
+      <div class="form-container">
 
-      <label class="pill-search" :class="{ focused: inputFocused }">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" style="color: var(--gray-z-5)">
-          <circle cx="6.5" cy="6.5" r="5" />
-          <line x1="10.5" y1="10.5" x2="14.5" y2="14.5" />
-        </svg>
-        <input
-          v-model="prompt"
-          type="text"
-          placeholder="describe something worth drawing..."
-          autocomplete="off"
-          spellcheck="false"
-          @focus="inputFocused = true"
-          @blur="inputFocused = false"
-          @keydown.enter="submit"
-        />
-        <button
-          class="pill-arrow"
-          :class="{ active: prompt.trim() }"
-          :disabled="!prompt.trim()"
-          aria-label="Submit"
-          @click="submit"
-        >
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="3" y1="8" x2="13" y2="8" />
-            <polyline points="9,4 13,8 9,12" />
-          </svg>
-        </button>
-      </label>
+        <h1>Submit a drawing prompt</h1>
+        <p class="subtitle">Have an idea, concept, or phrase you'd like to see drawn? Describe it below.</p>
 
-      <Transition name="conf">
-        <p v-if="confirmation" class="confirmation">{{ confirmation }}</p>
-      </Transition>
-    </div>
+        <div class="form-fields">
+          <div class="field">
+            <label for="idea">The idea</label>
+            <textarea
+              id="idea"
+              v-model="prompt"
+              placeholder="A quote, concept, or idea you want drawn..."
+              rows="3"
+              @keydown.meta.enter="submit"
+              @keydown.ctrl.enter="submit"
+            ></textarea>
+          </div>
 
-    <hr class="section-divider" />
+          <button
+            class="submit-btn"
+            :disabled="!prompt.trim()"
+            @click="submit"
+          >
+            Submit request
+          </button>
+        </div>
 
-    <div class="recent">
-      <p class="recent-header">Recent prompts</p>
+        <Transition name="conf">
+          <p v-if="confirmation" class="confirmation">{{ confirmation }}</p>
+        </Transition>
 
-      <div v-if="!prompts.length" class="empty-state">
-        <p>Nothing yet.<br>Submit something worth drawing.</p>
       </div>
 
-      <TransitionGroup name="list" tag="div" class="prompt-list">
-        <div v-for="item in prompts" :key="item.id" class="prompt-item">
-          <div class="status-dot" :class="item.status"></div>
-          <div class="prompt-body">
-            <div class="prompt-text">{{ item.text }}</div>
-            <div class="prompt-meta">
-              <span class="prompt-date">{{ formatDate(item.date) }}</span>
-              <span class="prompt-status" :class="item.status">{{ statusLabel(item.status) }}</span>
-            </div>
-            <div v-if="item.status === 'done'" class="prompt-result">
-              <div class="prompt-result-label">Drawing</div>
-              <img v-if="item.drawing" :src="item.drawing" :alt="item.text" class="prompt-result-img" />
-              <div v-else class="prompt-result-placeholder">coming soon.</div>
+      <!-- RECENT PROMPTS -->
+      <div class="recent-container">
+        <h2 class="recent-header">Recent prompts</h2>
+
+        <div v-if="!prompts.length" class="empty-state">
+          <p>Nothing yet. Submit something worth drawing.</p>
+        </div>
+
+        <TransitionGroup name="list" tag="div" class="prompt-list">
+          <div v-for="item in prompts" :key="item.id" class="prompt-item">
+            <div class="prompt-body">
+              <div class="prompt-text">{{ item.text }}</div>
+              <div class="prompt-meta">
+                <span class="prompt-date">{{ formatDate(item.date) }}</span>
+                <span class="prompt-status" :class="item.status">{{ statusLabel(item.status) }}</span>
+              </div>
+              <div v-if="item.status === 'done'" class="prompt-result">
+                <img v-if="item.drawing" :src="item.drawing" :alt="item.text" class="prompt-result-img" />
+                <p v-else class="prompt-result-placeholder">coming soon.</p>
+              </div>
             </div>
           </div>
-        </div>
-      </TransitionGroup>
-    </div>
-
-    <footer>
-      <div class="agent-avatar">
-        <img src="public/avatar.jpg" alt="Derrick Kempf" />
+        </TransitionGroup>
       </div>
-      <span class="agent-label">meet your agent</span>
+    </main>
+
+    <!-- FOOTER — dark, matching VV -->
+    <footer>
+      <div class="footer-inner">
+        <a href="/" class="footer-brand">Dravver</a>
+        <div class="footer-links">
+          <span class="footer-credit">by Derrick Kempf</span>
+        </div>
+        <p class="footer-copy">&copy; {{ new Date().getFullYear() }} Dravver</p>
+      </div>
     </footer>
 
   </div>
@@ -101,7 +103,6 @@ interface Prompt {
 }
 
 const prompt = ref('')
-const inputFocused = ref(false)
 const confirmation = ref('')
 let confTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -146,165 +147,171 @@ function statusLabel(s: string) {
 /* --- Page Shell --- */
 .page {
   min-height: 100dvh;
-  background: var(--background);
   display: flex;
   flex-direction: column;
-  padding: 0 var(--size-6);
-  max-width: var(--content-width);
-  margin: 0 auto;
+  background: var(--color-bg);
 }
 
-/* --- Header --- */
-header {
+/* --- Nav (VV style: fixed, white/blur, border-bottom) --- */
+nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 50;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, 0.8);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.nav-inner {
+  max-width: var(--content-width);
+  margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--size-4) 0;
-  border-bottom: 1px solid var(--border-color);
-  flex-shrink: 0;
+  height: 48px;
+  padding: 0 16px;
 }
 
-.logo {
+@media (min-width: 640px) { .nav-inner { padding: 0 24px; } }
+
+.nav-logo {
+  color: var(--color-text);
   display: flex;
   align-items: center;
-  gap: var(--size-2);
 }
 
-.logo-mark {
-  width: 28px; height: 28px;
-  border: 1px solid var(--border-color-highlight);
-  border-radius: var(--size-1);
-  display: flex; align-items: center; justify-content: center;
+.nav-logo:hover { color: var(--color-text-secondary); }
+
+.nav-brand {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text);
+  letter-spacing: 0.02em;
 }
 
-.logo-name {
-  font-family: var(--ui-font-family);
-  font-size: var(--ui-font-size);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: var(--letter-spacing-md);
-  text-transform: var(--ui-text-transform);
+/* --- Main --- */
+main {
+  flex: 1;
+  padding-top: 96px; /* 48px nav + 48px spacing */
 }
 
-.header-right {
-  font-family: var(--ui-font-family);
-  font-size: var(--font-xs);
-  color: var(--gray-z-5);
-  text-align: right;
-  line-height: var(--line-height-lg);
-  text-transform: var(--ui-text-transform);
-  letter-spacing: var(--letter-spacing);
+/* --- Form Container (matches /visuals/request) --- */
+.form-container {
+  max-width: var(--form-width);
+  margin: 0 auto;
+  padding: 0 16px 48px;
 }
 
-/* --- Hero --- */
-.hero {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: var(--size-9) 0 var(--size-8);
-  flex-shrink: 0;
-}
+@media (min-width: 640px) { .form-container { padding: 0 24px 48px; } }
 
 h1 {
-  font-size: clamp(1.5rem, 4vw, var(--font-xl));
-  font-weight: var(--font-weight-bold);
-  letter-spacing: var(--letter-spacing-sm);
-  text-align: center;
-  margin-bottom: var(--size-7);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 8px;
+  line-height: 1.2;
 }
 
-/* --- Search Input --- */
-.pill-search {
+.subtitle {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  margin-bottom: 32px;
+  line-height: 1.5;
+}
+
+/* --- Form Fields --- */
+.form-fields {
   display: flex;
-  align-items: center;
-  gap: var(--size-2);
+  flex-direction: column;
+  gap: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+}
+
+.field label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text);
+  margin-bottom: 6px;
+}
+
+.field textarea {
   width: 100%;
-  max-width: var(--content-width-sm);
-  padding: var(--size-3) var(--size-3) var(--size-3) var(--size-5);
-  border: 1px solid var(--border-color);
-  border-radius: var(--size-1);
-  cursor: text;
-  background: var(--background);
-  transition: border-color 0.2s ease;
-}
-
-.pill-search.focused {
-  border-color: var(--border-color-highlight);
-}
-
-.pill-search input {
-  flex: 1;
+  padding: 12px 16px;
+  font-size: 0.875rem;
+  color: var(--color-text);
   background: transparent;
-  border: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
   outline: none;
-  font-size: var(--font-sm);
-  color: var(--color);
-  caret-color: var(--color);
-  min-width: 0;
-  min-height: 44px;
+  resize: none;
+  transition: border-color 0.3s ease;
+  line-height: 1.5;
 }
 
-.pill-search input::placeholder {
-  color: var(--gray-z-5);
+.field textarea::placeholder {
+  color: var(--color-text-secondary);
 }
 
-.pill-arrow {
-  flex-shrink: 0;
-  width: 36px; height: 36px;
-  border-radius: var(--size-1);
-  border: 1px solid var(--border-color);
-  background: transparent;
-  color: var(--gray-z-4);
-  display: flex; align-items: center; justify-content: center;
-  cursor: default;
-  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+.field textarea:focus {
+  border-color: var(--color-text);
 }
 
-.pill-arrow.active {
-  color: var(--color);
-  border-color: var(--border-color-highlight);
+/* --- Submit Button (VV pill style) --- */
+.submit-btn {
+  align-self: flex-start;
+  padding: 12px 24px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-bg);
+  background: var(--color-accent);
+  border: none;
+  border-radius: var(--radius-pill);
   cursor: pointer;
+  transition: background 0.3s ease;
 }
 
-.pill-arrow.active:hover {
-  background: var(--gray-z-1);
-  border-color: var(--gray-z-4);
+.submit-btn:hover {
+  background: var(--color-accent-hover);
+}
+
+.submit-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 /* --- Confirmation --- */
 .confirmation {
-  margin-top: var(--size-3);
-  font-family: var(--ui-font-family);
-  font-size: var(--font-xs);
-  color: var(--muted);
-  letter-spacing: var(--letter-spacing);
-  text-align: center;
-  min-height: 1.1rem;
+  margin-top: 16px;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
 }
 
 .conf-enter-active, .conf-leave-active { transition: opacity 0.3s ease; }
 .conf-enter-from, .conf-leave-to { opacity: 0; }
 
-/* --- Divider --- */
-.section-divider {
-  border: none;
-  border-top: 1px solid var(--border-color);
-  margin: var(--size-2) 0 0;
+/* --- Recent Prompts --- */
+.recent-container {
+  max-width: var(--form-width);
+  margin: 0 auto;
+  padding: 0 16px 64px;
 }
 
-/* --- Recent Prompts --- */
-.recent {
-  flex: 1;
-  padding: var(--size-7) 0 0;
-}
+@media (min-width: 640px) { .recent-container { padding: 0 24px 64px; } }
 
 .recent-header {
-  font-family: var(--ui-font-family);
-  font-size: var(--font-xs);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: var(--letter-spacing-lg);
-  text-transform: var(--ui-text-transform);
-  color: var(--gray-z-4);
-  margin-bottom: var(--size-5);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  margin-bottom: 16px;
+  padding-top: 32px;
+  border-top: 1px solid var(--color-border);
 }
 
 .prompt-list {
@@ -313,131 +320,120 @@ h1 {
 }
 
 .prompt-item {
-  display: flex;
-  gap: var(--size-3);
-  padding: var(--size-4) 0;
-  border-bottom: 1px solid var(--border-color);
+  padding: 16px 0;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .prompt-item:last-child { border-bottom: none; }
 
-.status-dot {
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  margin-top: 6px;
-  flex-shrink: 0;
-}
-
-.status-dot.queued   { background: var(--gray-z-4); }
-.status-dot.progress { background: var(--gray-z-7); }
-.status-dot.done     { background: var(--color); }
-
-.prompt-body { flex: 1; min-width: 0; }
+.prompt-body { min-width: 0; }
 
 .prompt-text {
-  font-size: var(--font-base);
-  color: var(--gray-z-8);
-  line-height: var(--line-height-md);
+  font-size: 0.875rem;
+  color: var(--color-text);
+  line-height: 1.5;
 }
 
 .prompt-meta {
   display: flex;
   align-items: center;
-  gap: var(--size-2);
-  margin-top: var(--size-1);
+  gap: 8px;
+  margin-top: 4px;
 }
 
 .prompt-date {
-  font-family: var(--ui-font-family);
-  font-size: var(--font-xs);
-  color: var(--gray-z-4);
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
 }
 
 .prompt-status {
-  font-family: var(--ui-font-family);
-  font-size: var(--font-xs);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: var(--letter-spacing-md);
-  text-transform: var(--ui-text-transform);
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 
-.prompt-status.queued   { color: var(--gray-z-4); }
-.prompt-status.progress { color: var(--gray-z-7); }
-.prompt-status.done     { color: var(--color); }
+.prompt-status.queued   { color: var(--color-text-secondary); }
+.prompt-status.progress { color: var(--color-text); }
+.prompt-status.done     { color: var(--color-text); }
 
 /* --- Drawing Result --- */
 .prompt-result {
-  margin-top: var(--size-3);
-  padding: var(--size-3) var(--size-4);
-  border: 1px solid var(--border-color);
-  border-radius: var(--size-1);
-  background: var(--gray-z-1);
-}
-
-.prompt-result-label {
-  font-family: var(--ui-font-family);
-  font-size: var(--font-xs);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: var(--letter-spacing-lg);
-  text-transform: var(--ui-text-transform);
-  color: var(--gray-z-4);
-  margin-bottom: var(--size-2);
+  margin-top: 12px;
 }
 
 .prompt-result-img {
   width: 100%;
-  border-radius: var(--size-1);
+  border-radius: var(--radius-sm);
   display: block;
+  border: 1px solid var(--color-border);
 }
 
 .prompt-result-placeholder {
-  font-size: var(--font-sm);
-  color: var(--gray-z-4);
-  letter-spacing: var(--letter-spacing);
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
 }
 
 /* --- Empty State --- */
-.empty-state { padding: var(--size-7) 0; }
-.empty-state p {
-  font-size: var(--font-sm);
-  color: var(--gray-z-4);
-  line-height: var(--line-height-lg);
+.empty-state {
+  padding: 24px 0;
 }
 
-/* --- Footer --- */
+.empty-state p {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+/* --- Footer (VV dark footer) --- */
 footer {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--size-2);
-  padding: var(--size-8) 0;
+  background: #1d1d1f;
+  color: rgba(255, 255, 255, 0.6);
   flex-shrink: 0;
 }
 
-.agent-avatar {
-  width: 44px; height: 44px;
-  border-radius: 50%;
-  border: 1px solid var(--border-color);
-  background: var(--background);
-  display: flex; align-items: center; justify-content: center;
-  overflow: hidden;
+.footer-inner {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 32px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
 }
 
-.agent-avatar img { width: 100%; height: 100%; object-fit: cover; }
+@media (min-width: 640px) {
+  .footer-inner {
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 32px 24px;
+  }
+}
 
-.agent-label {
-  font-family: var(--ui-font-family);
-  font-size: var(--font-xs);
-  color: var(--muted);
-  letter-spacing: var(--letter-spacing-lg);
-  text-transform: var(--ui-text-transform);
+.footer-brand {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #fff;
+  text-decoration: none;
+}
+
+.footer-brand:hover { color: #fff; }
+
+.footer-links {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.footer-credit {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+  transition: color 0.3s ease;
+}
+
+.footer-copy {
+  font-size: 0.75rem;
 }
 
 /* --- List Transitions --- */
 .list-enter-active { transition: opacity 0.2s ease; }
 .list-enter-from   { opacity: 0; }
-
-/* --- Responsive --- */
-@media (min-width: 640px)  { .page { padding: 0 var(--size-8); } }
-@media (min-width: 960px)  { .page { padding: 0 var(--size-10); } }
 </style>

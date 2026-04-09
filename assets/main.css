@@ -4,113 +4,39 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* --- Neutral Palette --- */
+/* --- VV Color Tokens --- */
 :root {
-  --black:    #000;
-  --gray-50:  #fafafa;
-  --gray-100: #f5f5f5;
-  --gray-200: #e5e5e5;
-  --gray-300: #d4d4d4;
-  --gray-400: #a3a3a3;
-  --gray-500: #737373;
-  --gray-600: #525252;
-  --gray-700: #404040;
-  --gray-800: #262626;
-  --gray-900: #171717;
-  --gray-950: #0a0a0a;
-  --white:    #fff;
-}
+  --color-text:           #1d1d1f;
+  --color-text-secondary: #86868b;
+  --color-border:         #d2d2d7;
+  --color-bg:             #fff;
+  --color-accent:         #1d1d1f;
+  --color-accent-hover:   #000;
+  --color-error:          red;
 
-/* --- Z-Depth Color System (dark mode default for Dravver) --- */
-:root {
-  --gray-z-0:  var(--black);
-  --gray-z-1:  var(--gray-950);
-  --gray-z-2:  var(--gray-900);
-  --gray-z-3:  var(--gray-800);
-  --gray-z-4:  var(--gray-700);
-  --gray-z-5:  var(--gray-600);
-  --gray-z-6:  var(--gray-500);
-  --gray-z-7:  var(--gray-400);
-  --gray-z-8:  var(--gray-300);
-  --gray-z-9:  var(--gray-200);
-  --gray-z-10: var(--white);
+  --radius-sm:   0.5rem;   /* 8px — rounded-lg */
+  --radius-pill: 980px;
 
-  --background: var(--gray-z-0);
-  --color:      var(--gray-z-10);
-  --muted:      var(--gray-z-6);
-  --primary:    var(--color);
-  --error:      red;
-  --success:    #94e337;
-
-  --border-color:           var(--gray-z-2);
-  --border-color-highlight: var(--gray-z-3);
-}
-
-/* --- Spacing Scale --- */
-:root {
-  --size-0:  0.125rem;  /* 2px  */
-  --size-1:  0.25rem;   /* 4px  */
-  --size-2:  0.5rem;    /* 8px  */
-  --size-3:  0.75rem;   /* 12px */
-  --size-4:  1rem;      /* 16px */
-  --size-5:  1.25rem;   /* 20px */
-  --size-6:  1.5rem;    /* 24px */
-  --size-7:  2rem;      /* 32px */
-  --size-8:  3rem;      /* 48px */
-  --size-9:  4.5rem;    /* 72px */
-  --size-10: 6rem;      /* 96px */
-}
-
-/* --- Layout Widths --- */
-:root {
-  --content-width:    60rem;  /* 960px */
-  --content-width-sm: 35rem;  /* 560px */
-  --form-width:       24rem;  /* 384px */
-}
-
-/* --- Typography --- */
-:root {
-  --font-base: 16px;
-  --font-xs:  calc(var(--font-base) * 0.69);  /* ~11px */
-  --font-sm:  calc(var(--font-base) * 0.8);   /* ~13px */
-  --font-lg:  calc(var(--font-base) * 1.2);   /* ~19px */
-  --font-xl:  calc(var(--font-base) * 1.4);   /* ~22px */
-
-  --font-weight-light: 300;
-  --font-weight:       400;
-  --font-weight-bold:  500;
-
-  --font-family:    'Hanken Grotesk', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --ui-font-family: 'IBM Plex Mono', 'SF Mono', 'Fira Code', monospace;
-  --ui-font-size:   var(--font-sm);
-  --ui-text-transform: uppercase;
-
-  --line-height:    100%;
-  --line-height-md: 120%;
-  --line-height-lg: 160%;
-
-  --letter-spacing-sm: -0.025em;
-  --letter-spacing:     0.025em;
-  --letter-spacing-md:  0.05em;
-  --letter-spacing-lg:  0.1em;
+  --content-width: 980px;
+  --form-width:    520px;
 }
 
 /* --- Base Styles --- */
 html, body {
   height: 100%;
-  background-color: var(--background);
-  color: var(--color);
-  font-family: var(--font-family);
-  font-size: var(--font-base);
-  font-weight: var(--font-weight);
-  line-height: var(--line-height-md);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 ::selection {
-  background: var(--color);
-  color: var(--background);
+  background: var(--color-text);
+  color: var(--color-bg);
 }
 
 a {

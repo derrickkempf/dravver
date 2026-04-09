@@ -7,14 +7,14 @@ export default defineNuxtConfig({
       meta: [
         { name: 'description', content: 'Submit a prompt. Get a drawing back. Eventually.' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-        { name: 'theme-color', content: '#000000' },
+        { name: 'theme-color', content: '#ffffff' },
       ],
       link: [
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
         {
           rel: 'stylesheet',
-          href: 'https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap',
+          href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap',
         },
       ],
     },
