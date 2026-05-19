@@ -219,8 +219,19 @@ async function submit() {
     nextTick(() => {
       recentEl.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
-  } catch {
-    confirmation.value = 'something went sideways. try again?'
+  } catch (e: unknown) {
+    const err = e as { statusCode?: number; statusMessage?: string; data?: { statusMessage?: string; message?: string }; message?: string }
+    const serverMsg = err?.data?.statusMessage || err?.data?.message || err?.statusMessage || err?.message
+    const code = err?.statusCode
+    if (code && code >= 500) {
+      confirmation.value = `server error (${code}). the prompt store may not be configured — check upstash env vars.`
+    } else if (serverMsg) {
+      confirmation.value = `couldn't submit: ${serverMsg}`
+    } else {
+      confirmation.value = 'something went sideways. try again?'
+    }
+    // eslint-disable-next-line no-console
+    console.error('[dravver] submit failed:', e)
   } finally {
     submitting.value = false
   }

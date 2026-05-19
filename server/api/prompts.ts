@@ -2,9 +2,10 @@
 // GET  — returns all prompts
 // POST — adds a new prompt from a visitor
 //
-// Uses Upstash Redis for persistence (connected via Vercel Storage → Upstash).
-// Requires UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN env vars —
-// these are added automatically when you connect Upstash in the Vercel dashboard.
+// Persistence:
+//   • If UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are set, uses Upstash Redis.
+//   • Otherwise falls back to an in-memory store so the site is usable in dev
+//     and so missing env vars surface as a clear warning instead of a 500.
 
 import { Redis } from '@upstash/redis'
 
@@ -24,6 +25,20 @@ const seedPrompts: Prompt[] = [
   { id: 'p_003', text: 'the moat is the person, not the file', date: '2025-03-23', status: 'queued',   drawing: null },
 ]
 
+// ── In-memory fallback ────────────────────────────────────────────
+// Lives for the lifetime of the server instance (per Vercel cold start).
+// Plenty good for dev or for a graceful prod fallback while Upstash is wired up.
+let memoryStore: Prompt[] | null = null
+function getMemory(): Prompt[] {
+  if (memoryStore === null) memoryStore = [...seedPrompts]
+  return memoryStore
+}
+function setMemory(p: Prompt[]) { memoryStore = p }
+
+function hasUpstash(): boolean {
+  return !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
+}
+
 function getRedis() {
   return new Redis({
     url: process.env.UPSTASH_REDIS_REST_URL!,
@@ -31,20 +46,50 @@ function getRedis() {
   })
 }
 
+let warned = false
+function warnNoUpstash(err?: unknown) {
+  if (warned) return
+  warned = true
+  // eslint-disable-next-line no-console
+  console.warn(
+    '[dravver] Upstash not configured — using in-memory store. ' +
+    'Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN to persist prompts.' +
+    (err ? ` (cause: ${(err as Error).message ?? err})` : ''),
+  )
+}
+
 export async function load(): Promise<Prompt[]> {
-  const redis = getRedis()
-  const data = await redis.get<Prompt[]>(STORE_KEY)
-  if (!data) {
-    await redis.set(STORE_KEY, JSON.stringify(seedPrompts))
-    return seedPrompts
+  if (!hasUpstash()) {
+    warnNoUpstash()
+    return getMemory()
   }
-  // Upstash auto-parses JSON, but guard either way
-  return typeof data === 'string' ? JSON.parse(data) : data
+  try {
+    const redis = getRedis()
+    const data = await redis.get<Prompt[]>(STORE_KEY)
+    if (data === null || data === undefined) {
+      await redis.set(STORE_KEY, JSON.stringify(seedPrompts))
+      return seedPrompts
+    }
+    return typeof data === 'string' ? JSON.parse(data) : data
+  } catch (err) {
+    warnNoUpstash(err)
+    return getMemory()
+  }
 }
 
 export async function save(prompts: Prompt[]): Promise<void> {
-  const redis = getRedis()
-  await redis.set(STORE_KEY, JSON.stringify(prompts))
+  if (!hasUpstash()) {
+    warnNoUpstash()
+    setMemory(prompts)
+    return
+  }
+  try {
+    const redis = getRedis()
+    await redis.set(STORE_KEY, JSON.stringify(prompts))
+  } catch (err) {
+    warnNoUpstash(err)
+    setMemory(prompts)
+  }
 }
 
 export default defineEventHandler(async (event) => {
@@ -56,14 +101,17 @@ export default defineEventHandler(async (event) => {
 
   if (method === 'POST') {
     const body = await readBody(event)
-    const text = (body?.text || '').trim()
-    if (!text) throw createError({ statusCode: 400, message: 'text required' })
+    const text = (body?.text || '').toString().trim()
+    if (!text) throw createError({ statusCode: 400, statusMessage: 'text required' })
+    if (text.length > 280) {
+      throw createError({ statusCode: 400, statusMessage: 'text too long (max 280)' })
+    }
 
     const prompts = await load()
     const entry: Prompt = {
       id: `p_${Date.now()}`,
       text,
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toISOString(),
       status: 'queued',
       drawing: null,
     }
@@ -71,4 +119,6 @@ export default defineEventHandler(async (event) => {
     await save(prompts)
     return entry
   }
+
+  throw createError({ statusCode: 405, statusMessage: 'method not allowed' })
 })
