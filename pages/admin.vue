@@ -5,87 +5,142 @@
     <nav>
       <div class="nav-inner">
         <a href="/" class="nav-logo" aria-label="Home">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <svg width="22" height="22" viewBox="0 0 14 14" fill="none" aria-hidden="true">
             <path d="M7 1 C7.6 0.8, 11.2 1.1, 12.8 3.8 C14.1 6, 13.9 9.4, 12.2 11.3 C10.3 13.4, 7.4 13.8, 5.2 12.8 C2.4 11.5, 0.8 8.3, 1 5.8 C1.3 2.5, 3.8 1.2, 7 1"
-              stroke="currentColor" stroke-width="1.1" fill="none" stroke-linecap="round"/>
+              stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/>
           </svg>
-        </a>
-        <div class="nav-links">
           <span class="nav-brand">Dravver</span>
-          <span class="nav-tag">Admin</span>
+          <span class="nav-tag">admin</span>
+        </a>
+        <div class="nav-right" v-if="authed">
+          <span class="nav-counter"><b>{{ prompts.length }}</b><span class="lbl">&nbsp;total</span></span>
         </div>
       </div>
     </nav>
 
     <main>
       <!-- AUTH GATE -->
-      <div v-if="!authed" class="auth-container">
-        <h1>Admin</h1>
-        <p class="subtitle">Enter secret to continue</p>
-        <div class="form-fields">
-          <div class="field">
-            <label for="secret">Secret</label>
-            <input
-              id="secret"
-              v-model="secretInput"
-              type="password"
-              placeholder="secret..."
-              autocomplete="off"
-              @keydown.enter="unlock"
-            />
+      <section v-if="!authed" class="hero">
+        <div class="hero-inner narrow">
+          <p class="eyebrow">restricted</p>
+          <h1>Admin.</h1>
+          <p class="subtitle">Enter the secret to manage prompts and upload drawings.</p>
+
+          <div class="form-card">
+            <div class="field">
+              <label for="secret">Secret</label>
+              <input
+                id="secret"
+                v-model="secretInput"
+                type="password"
+                placeholder="••••••••"
+                autocomplete="off"
+                @keydown.enter="unlock"
+              />
+            </div>
+            <button class="btn btn-primary" :disabled="!secretInput || authLoading" @click="unlock">
+              <span v-if="!authLoading">Unlock</span>
+              <span v-else class="spinner" aria-hidden="true"></span>
+            </button>
           </div>
-          <button class="submit-btn" @click="unlock">Unlock</button>
+
+          <Transition name="conf">
+            <p v-if="authError" class="auth-error">{{ authError }}</p>
+          </Transition>
         </div>
-        <p v-if="authError" class="auth-error">{{ authError }}</p>
-      </div>
+      </section>
 
       <!-- ADMIN PANEL -->
-      <div v-else class="admin-container">
-        <h1>Queue</h1>
-        <p class="subtitle">Manage prompts and upload drawings.</p>
+      <section v-else class="panel">
+        <header class="panel-head">
+          <div>
+            <p class="eyebrow">queue</p>
+            <h1>Manage prompts</h1>
+          </div>
+          <button class="icon-btn" :class="{ spinning: loading }" aria-label="Refresh" @click="loadPrompts">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M13.5 8a5.5 5.5 0 1 1-1.7-3.95"/><polyline points="13.5 2.5 13.5 5 11 5"/>
+            </svg>
+          </button>
+        </header>
 
-        <div v-if="loading" class="loading-state">loading...</div>
+        <div class="filter-row" role="tablist">
+          <button
+            v-for="f in filters"
+            :key="f.value"
+            class="pill"
+            :class="{ on: filter === f.value }"
+            @click="filter = f.value"
+          >
+            {{ f.label }}<span class="pill-count">{{ counts[f.value] }}</span>
+          </button>
+        </div>
 
-        <div v-else class="prompt-list">
-          <div v-for="item in prompts" :key="item.id" class="prompt-card">
-            <div class="card-top">
-              <div class="card-info">
-                <span class="card-text">{{ item.text }}</span>
-              </div>
-              <div class="card-meta">
-                <span class="card-date">{{ item.date }}</span>
-                <select class="status-select" :value="item.status" @change="updateStatus(item.id, ($event.target as HTMLSelectElement).value)">
-                  <option value="queued">Queued</option>
-                  <option value="progress">In progress</option>
-                  <option value="done">Delivered</option>
-                </select>
-              </div>
+        <div v-if="loading && !prompts.length" class="loading-state">loading…</div>
+
+        <div v-else-if="!filteredPrompts.length" class="empty-state">
+          <p>No prompts in this view.</p>
+        </div>
+
+        <ul v-else class="prompt-list">
+          <li v-for="item in filteredPrompts" :key="item.id" class="prompt-card">
+            <div class="card-head">
+              <p class="card-text">{{ item.text }}</p>
+              <span class="status-badge" :class="item.status">{{ statusLabel(item.status) }}</span>
             </div>
+
+            <div class="card-meta">
+              <time>{{ formatDate(item.date) }}</time>
+              <span class="card-id">#{{ item.id.slice(0, 8) }}</span>
+            </div>
+
+            <div class="card-controls">
+              <label class="control-label">Status</label>
+              <select
+                class="status-select"
+                :value="item.status"
+                @change="updateStatus(item.id, ($event.target as HTMLSelectElement).value)"
+              >
+                <option value="queued">Queued</option>
+                <option value="progress">In progress</option>
+                <option value="done">Delivered</option>
+              </select>
+            </div>
+
             <div class="card-upload">
-              <img v-if="item.drawing" :src="item.drawing" class="existing-drawing" :alt="item.text" />
+              <img v-if="item.drawing" :src="item.drawing" :alt="item.text" class="existing-drawing" />
               <label class="upload-label" :class="{ 'has-file': uploadFiles[item.id] }">
                 <input type="file" accept="image/*" class="file-input" @change="onFileSelect(item.id, $event)" />
-                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-                  <line x1="8" y1="2" x2="8" y2="11"/><polyline points="4,6 8,2 12,6"/>
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="8" y1="2" x2="8" y2="11"/>
+                  <polyline points="4,6 8,2 12,6"/>
                   <line x1="2" y1="14" x2="14" y2="14"/>
                 </svg>
-                <span>{{ uploadFiles[item.id] ? uploadFiles[item.id]!.name : (item.drawing ? 'replace' : 'upload drawing') }}</span>
+                <span>{{ uploadFiles[item.id] ? uploadFiles[item.id]!.name : (item.drawing ? 'replace drawing' : 'upload drawing') }}</span>
               </label>
-              <button v-if="uploadFiles[item.id]" class="save-btn" :class="{ uploading: uploading[item.id] }" @click="uploadDrawing(item.id)">
-                {{ uploading[item.id] ? 'uploading...' : 'save' }}
+              <button
+                v-if="uploadFiles[item.id]"
+                class="btn btn-primary btn-sm"
+                :disabled="uploading[item.id]"
+                @click="uploadDrawing(item.id)"
+              >
+                <span v-if="!uploading[item.id]">Save</span>
+                <span v-else class="spinner" aria-hidden="true"></span>
               </button>
             </div>
-            <p v-if="feedback[item.id]" class="card-feedback">{{ feedback[item.id] }}</p>
-          </div>
-        </div>
-      </div>
+
+            <Transition name="conf">
+              <p v-if="feedback[item.id]" class="card-feedback">{{ feedback[item.id] }}</p>
+            </Transition>
+          </li>
+        </ul>
+      </section>
     </main>
 
-    <!-- FOOTER -->
     <footer>
       <div class="footer-inner">
         <a href="/" class="footer-brand">Dravver</a>
-        <p class="footer-copy">&copy; {{ new Date().getFullYear() }} Dravver</p>
+        <span class="footer-copy">© {{ year }}</span>
       </div>
     </footer>
 
@@ -97,17 +152,43 @@ interface Prompt {
   id: string; text: string; date: string; status: string; drawing: string | null
 }
 
+definePageMeta({ title: 'admin · dravver' })
+
 const secretInput = ref('')
 const authed = ref(false)
 const authError = ref('')
+const authLoading = ref(false)
 const adminSecret = ref('')
 const prompts = ref<Prompt[]>([])
 const loading = ref(false)
+const filter = ref<'all' | 'queued' | 'progress' | 'done'>('all')
 const uploadFiles = ref<Record<string, File | null>>({})
 const uploading = ref<Record<string, boolean>>({})
 const feedback = ref<Record<string, string>>({})
+const year = new Date().getFullYear()
+
+const filters = [
+  { value: 'all', label: 'All' },
+  { value: 'queued', label: 'Queued' },
+  { value: 'progress', label: 'In progress' },
+  { value: 'done', label: 'Delivered' },
+] as const
+
+const counts = computed(() => {
+  const c: Record<string, number> = { all: prompts.value.length, queued: 0, progress: 0, done: 0 }
+  for (const p of prompts.value) { if (p.status in c) c[p.status]++ }
+  return c
+})
+
+const filteredPrompts = computed(() => {
+  if (filter.value === 'all') return prompts.value
+  return prompts.value.filter(p => p.status === filter.value)
+})
 
 async function unlock() {
+  if (!secretInput.value || authLoading.value) return
+  authLoading.value = true
+  authError.value = ''
   try {
     await $fetch('/api/admin/upload', {
       method: 'PATCH',
@@ -116,31 +197,47 @@ async function unlock() {
     })
   } catch (e: unknown) {
     const err = e as { statusCode?: number }
-    if (err?.statusCode === 401) { authError.value = 'wrong secret.'; return }
+    if (err?.statusCode === 401) {
+      authError.value = 'wrong secret.'
+      authLoading.value = false
+      return
+    }
   }
   adminSecret.value = secretInput.value
   authed.value = true
   authError.value = ''
-  loadPrompts()
+  authLoading.value = false
+  await loadPrompts()
 }
 
 async function loadPrompts() {
   loading.value = true
-  prompts.value = await $fetch<Prompt[]>('/api/prompts')
-  loading.value = false
+  try {
+    prompts.value = await $fetch<Prompt[]>('/api/prompts')
+  } finally {
+    setTimeout(() => { loading.value = false }, 300)
+  }
 }
 
 async function updateStatus(id: string, status: string) {
-  await $fetch('/api/admin/upload', {
-    method: 'PATCH',
-    headers: { 'x-admin-secret': adminSecret.value },
-    body: { id, status },
-  })
-  await loadPrompts()
+  feedback.value[id] = ''
+  try {
+    await $fetch('/api/admin/upload', {
+      method: 'PATCH',
+      headers: { 'x-admin-secret': adminSecret.value },
+      body: { id, status },
+    })
+    feedback.value[id] = `marked ${statusLabel(status).toLowerCase()}.`
+    setTimeout(() => { feedback.value[id] = '' }, 2500)
+    await loadPrompts()
+  } catch {
+    feedback.value[id] = 'failed to update. try again.'
+  }
 }
 
 function onFileSelect(id: string, event: Event) {
   uploadFiles.value[id] = (event.target as HTMLInputElement).files?.[0] || null
+  feedback.value[id] = ''
 }
 
 async function uploadDrawing(id: string) {
@@ -156,6 +253,7 @@ async function uploadDrawing(id: string) {
       body: { id, imageBase64: base64, mimeType: file.type },
     })
     feedback.value[id] = 'saved.'
+    setTimeout(() => { feedback.value[id] = '' }, 2500)
     uploadFiles.value[id] = null
     await loadPrompts()
   } catch {
@@ -173,10 +271,16 @@ function toBase64(file: File): Promise<string> {
     r.readAsDataURL(file)
   })
 }
+
+function formatDate(d: string) {
+  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+}
+function statusLabel(s: string) {
+  return ({ queued: 'Queued', progress: 'In progress', done: 'Delivered' } as Record<string, string>)[s] ?? s
+}
 </script>
 
 <style scoped>
-/* --- Page Shell --- */
 .page {
   min-height: 100dvh;
   display: flex;
@@ -184,304 +288,400 @@ function toBase64(file: File): Promise<string> {
   background: var(--color-bg);
 }
 
-/* --- Nav --- */
+/* Nav (shared visual language with index) */
 nav {
-  position: fixed;
-  top: 0; left: 0; right: 0;
+  position: sticky;
+  top: 0;
   z-index: 50;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, .82);
+  backdrop-filter: saturate(1.2) blur(14px);
+  -webkit-backdrop-filter: saturate(1.2) blur(14px);
   border-bottom: 1px solid var(--color-border);
 }
-
 .nav-inner {
   max-width: var(--content-width);
   margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 48px;
-  padding: 0 16px;
+  height: var(--nav-height);
+  padding: 0 var(--space-lg);
+  gap: var(--space-md);
 }
-
-@media (min-width: 640px) { .nav-inner { padding: 0 24px; } }
-
 .nav-logo {
-  color: var(--color-text);
-  display: flex;
+  display: inline-flex;
   align-items: center;
+  gap: 10px;
+  color: var(--color-fg);
 }
-
-.nav-links {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
 .nav-brand {
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--color-text);
+  font-weight: var(--fw-bold);
+  font-size: var(--font-size-base);
 }
-
 .nav-tag {
-  font-size: 0.75rem;
-  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--fw-bold);
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: .14em;
+  padding: 3px 10px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-pill);
+}
+.nav-right { display: flex; align-items: center; gap: var(--space-sm); }
+.nav-counter {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  padding: 6px 14px;
+}
+.nav-counter b { color: var(--color-fg); font-weight: var(--fw-bold); }
+@media (max-width: 480px) {
+  .lbl { display: none; }
+  .nav-inner { padding: 0 var(--space-md); }
 }
 
-/* --- Main --- */
-main {
-  flex: 1;
-  padding-top: 96px;
-}
+main { flex: 1; width: 100%; }
 
-/* --- Auth Container --- */
-.auth-container {
+/* Hero (auth gate) */
+.hero {
+  padding: clamp(40px, 8vw, 96px) var(--space-lg) var(--space-2xl);
+}
+.hero-inner {
   max-width: var(--form-width);
   margin: 0 auto;
-  padding: 0 16px;
 }
+.hero-inner.narrow { max-width: 440px; }
 
-@media (min-width: 640px) { .auth-container { padding: 0 24px; } }
-
+.eyebrow {
+  font-size: var(--font-size-xs);
+  font-weight: var(--fw-medium);
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: .14em;
+  margin-bottom: var(--space-md);
+}
 h1 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--color-text);
-  margin-bottom: 8px;
+  font-size: clamp(1.75rem, 6vw, var(--font-size-2xl));
+  font-weight: var(--fw-black);
+  letter-spacing: -.02em;
+  line-height: 1.05;
+  color: var(--color-fg);
+  margin-bottom: var(--space-md);
 }
-
 .subtitle {
-  font-size: 0.875rem;
-  color: var(--color-text-secondary);
-  margin-bottom: 32px;
+  font-size: var(--font-size-base);
+  color: var(--color-muted);
+  margin-bottom: var(--space-xl);
+  line-height: 1.55;
+  max-width: 48ch;
 }
 
-.form-fields {
+.form-card {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-md);
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  transition: border-color var(--dur-base) var(--ease-out);
 }
+.form-card:focus-within { border-color: var(--color-fg); }
 
-.field {
-  display: flex;
-  flex-direction: column;
+.field { display: flex; flex-direction: column; }
+.field label, .control-label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--fw-bold);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--color-muted);
+  margin-bottom: var(--space-sm);
 }
-
-.field label {
-  display: block;
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--color-text);
-  margin-bottom: 6px;
-}
-
 .field input {
   width: 100%;
-  padding: 12px 16px;
-  font-size: 0.875rem;
-  color: var(--color-text);
-  background: transparent;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  font-size: var(--font-size-base);
+  background: var(--color-bg);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
   outline: none;
-  transition: border-color 0.3s ease;
+  transition: border-color var(--dur-fast) var(--ease-out);
 }
+.field input::placeholder { color: var(--color-muted); }
+.field input:focus { border-color: var(--color-fg); }
 
-.field input::placeholder { color: var(--color-text-secondary); }
-.field input:focus { border-color: var(--color-text); }
-
-.submit-btn {
-  align-self: flex-start;
-  padding: 12px 24px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--color-bg);
-  background: var(--color-accent);
-  border: none;
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 48px;
+  padding: 0 var(--space-lg);
+  font-size: var(--font-size-base);
+  font-weight: var(--fw-bold);
   border-radius: var(--radius-pill);
-  cursor: pointer;
-  transition: background 0.3s ease;
+  border: 2px solid transparent;
+  transition: background var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-out);
 }
-
-.submit-btn:hover { background: var(--color-accent-hover); }
+.btn:active { transform: translateY(1px); }
+.btn-primary {
+  background: var(--color-fg);
+  color: var(--color-bg);
+  border-color: var(--color-fg);
+  align-self: flex-start;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-bg);
+  color: var(--color-fg);
+}
+.btn-primary:disabled { opacity: .35; cursor: not-allowed; }
+.btn-sm { height: 38px; padding: 0 var(--space-md); font-size: var(--font-size-sm); }
+.spinner {
+  width: 16px; height: 16px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 .auth-error {
-  margin-top: 16px;
-  font-size: 0.875rem;
+  margin-top: var(--space-md);
+  font-size: var(--font-size-sm);
   color: var(--color-error);
+  background: rgba(192, 57, 43, .06);
+  border: 1px solid rgba(192, 57, 43, .25);
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
 }
 
-/* --- Admin Container --- */
-.admin-container {
-  max-width: 700px;
+/* Admin panel */
+.panel {
+  max-width: 720px;
   margin: 0 auto;
-  padding: 0 16px 64px;
+  padding: clamp(32px, 6vw, 64px) var(--space-lg) var(--space-3xl);
+  width: 100%;
 }
-
-@media (min-width: 640px) { .admin-container { padding: 0 24px 64px; } }
-
-.loading-state {
-  font-size: 0.875rem;
-  color: var(--color-text-secondary);
-}
-
-/* --- Prompt Cards --- */
-.prompt-list {
+.panel-head {
   display: flex;
-  flex-direction: column;
-}
-
-.prompt-card {
-  padding: 16px 0;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.prompt-card:last-child { border-bottom: none; }
-
-.card-top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 12px;
-}
-
-.card-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.card-text {
-  font-size: 0.875rem;
-  color: var(--color-text);
-  line-height: 1.5;
-}
-
-.card-meta {
-  display: flex;
-  flex-direction: column;
   align-items: flex-end;
-  gap: 6px;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-bottom: var(--space-xl);
+}
+.panel-head h1 { margin-bottom: 0; }
+
+.icon-btn {
+  width: 40px; height: 40px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-pill);
+  border: 2px solid var(--color-border);
+  color: var(--color-muted);
+  background: var(--color-bg);
+  transition: all var(--dur-fast) var(--ease-out);
   flex-shrink: 0;
 }
+.icon-btn:hover { border-color: var(--color-fg); color: var(--color-fg); }
+.icon-btn.spinning svg { animation: spin .8s var(--ease-in-out); }
 
-.card-date {
-  font-size: 0.75rem;
-  color: var(--color-text-secondary);
-}
-
-.status-select {
-  background: transparent;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  color: var(--color-text);
-  font-size: 0.75rem;
-  padding: 4px 10px;
-  cursor: pointer;
-  outline: none;
-  transition: border-color 0.3s ease;
-}
-
-.status-select:hover,
-.status-select:focus { border-color: var(--color-text); }
-
-.status-select option {
-  background: var(--color-bg);
-  color: var(--color-text);
-}
-
-/* --- Upload Area --- */
-.card-upload {
+.filter-row {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
 }
-
-.existing-drawing {
-  width: 48px; height: 48px;
-  border-radius: var(--radius-sm);
-  object-fit: cover;
-  border: 1px solid var(--color-border);
-}
-
-.upload-label {
+.filter-row::-webkit-scrollbar { display: none; }
+.pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.75rem;
-  color: var(--color-text-secondary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: 8px 14px;
+  flex-shrink: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--fw-medium);
+  color: var(--color-muted);
+  background: var(--color-bg);
+  border: 2px solid var(--color-border);
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  transition: all var(--dur-fast) var(--ease-out);
+}
+.pill:hover { color: var(--color-fg); border-color: var(--color-fg); }
+.pill.on { background: var(--color-fg); color: var(--color-bg); border-color: var(--color-fg); }
+.pill-count { font-size: var(--font-size-xs); opacity: .75; }
+
+.loading-state {
+  padding: var(--space-2xl) var(--space-md);
+  text-align: center;
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+}
+
+.empty-state {
+  text-align: center;
+  padding: var(--space-2xl) var(--space-md);
+  background: var(--color-surface);
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* Prompt cards (admin) */
+.prompt-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+.prompt-card {
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+.prompt-card:hover { border-color: var(--color-fg); }
+
+.card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+.card-text {
+  font-size: var(--font-size-base);
+  color: var(--color-fg);
+  line-height: 1.5;
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.status-badge {
+  flex-shrink: 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--fw-bold);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  padding: 4px 10px;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-pill);
+  background: var(--color-bg);
+}
+.status-badge.queued   { color: var(--color-muted); border-color: var(--color-border); }
+.status-badge.progress { color: var(--color-wip);   background: var(--color-wip-bg); }
+.status-badge.done     { color: var(--color-done);  background: var(--color-done-bg); }
+
+.card-meta {
+  display: flex;
+  gap: var(--space-md);
+  font-size: var(--font-size-xs);
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+}
+.card-id { font-family: var(--font-mono); letter-spacing: .03em; }
+
+.card-controls { display: flex; flex-direction: column; }
+.status-select {
+  font-size: var(--font-size-base);
+  background: var(--color-bg);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-fg);
+  padding: 10px 14px;
   cursor: pointer;
-  transition: border-color 0.3s ease, color 0.3s ease;
+  outline: none;
+  transition: border-color var(--dur-fast) var(--ease-out);
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='3 5 6 8 9 5'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px;
 }
+.status-select:hover, .status-select:focus { border-color: var(--color-fg); }
 
-.upload-label:hover,
+.card-upload {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+.existing-drawing {
+  width: 56px; height: 56px;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+  border: 2px solid var(--color-border);
+  background: var(--color-bg);
+}
+.upload-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-size-sm);
+  font-weight: var(--fw-medium);
+  color: var(--color-muted);
+  background: var(--color-bg);
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-pill);
+  padding: 10px 18px;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out);
+  flex: 1;
+  min-width: 180px;
+  justify-content: center;
+}
+.upload-label:hover { color: var(--color-fg); border-color: var(--color-fg); }
 .upload-label.has-file {
-  border-color: var(--color-text);
-  color: var(--color-text);
+  color: var(--color-fg);
+  border-color: var(--color-accent);
+  border-style: solid;
+  background: var(--color-accent-bg);
 }
-
 .file-input { display: none; }
 
-.save-btn {
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--color-bg);
-  background: var(--color-accent);
-  border: none;
-  border-radius: var(--radius-pill);
-  padding: 8px 16px;
-  cursor: pointer;
-  transition: background 0.3s ease;
-}
-
-.save-btn:hover { background: var(--color-accent-hover); }
-.save-btn.uploading { opacity: 0.4; cursor: not-allowed; }
-
 .card-feedback {
-  margin-top: 8px;
-  font-size: 0.75rem;
-  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+  padding: 8px 12px;
+  background: var(--color-accent-bg);
+  border-radius: var(--radius-sm);
 }
 
-/* --- Footer --- */
+.conf-enter-active, .conf-leave-active { transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out); }
+.conf-enter-from, .conf-leave-to { opacity: 0; transform: translateY(-4px); }
+
+/* Footer */
 footer {
-  background: #1d1d1f;
-  color: rgba(255, 255, 255, 0.6);
-  flex-shrink: 0;
+  margin-top: auto;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg);
 }
-
 .footer-inner {
   max-width: var(--content-width);
   margin: 0 auto;
-  padding: 32px 16px;
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 16px;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
 }
-
-@media (min-width: 640px) {
-  .footer-inner {
-    flex-direction: row;
-    justify-content: space-between;
-    padding: 32px 24px;
-  }
-}
-
-.footer-brand {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #fff;
-  text-decoration: none;
-}
-
-.footer-copy {
-  font-size: 0.75rem;
-}
+.footer-brand { color: var(--color-fg); font-weight: var(--fw-bold); }
 </style>
