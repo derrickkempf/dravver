@@ -4,7 +4,7 @@
       <DewdLogo :size="72" class="logo" />
 
       <!-- AUTH GATE -->
-      <template v-if="!authed">
+      <template v-if="!checking && !authed">
         <h1>Admin</h1>
         <p class="subtitle">Enter the secret to manage prompts and upload drawings.</p>
 
@@ -15,7 +15,7 @@
             type="password"
             placeholder="Secret"
             aria-label="Secret"
-            autocomplete="off"
+            autocomplete="current-password"
             @keydown.enter="unlock"
           />
           <button class="btn" :disabled="!secretInput || authLoading" @click="unlock">
@@ -29,10 +29,10 @@
         </Transition>
       </template>
 
-      <!-- ADMIN PANEL -->
-      <template v-else>
+      <!-- ADMIN PANEL HEADER -->
+      <template v-else-if="authed">
         <h1>Manage prompts</h1>
-        <p class="subtitle">{{ prompts.length }} total</p>
+        <p class="subtitle">{{ prompts.length }} total · drag a drawing onto a prompt to upload it</p>
       </template>
     </section>
 
@@ -52,11 +52,21 @@
         </button>
       </div>
 
-      <p v-if="loading && !prompts.length" class="state">loading…</p>
+      <p v-if="loadError" class="state error">{{ loadError }}</p>
+      <p v-else-if="loading && !prompts.length" class="state">loading…</p>
       <p v-else-if="!filteredPrompts.length" class="state">No prompts in this view.</p>
 
       <ul v-else class="prompt-list">
-        <li v-for="item in filteredPrompts" :key="item.id" class="prompt-item">
+        <li
+          v-for="item in filteredPrompts"
+          :key="item.id"
+          class="prompt-item"
+          :class="{ dragging: dragging === item.id, busy: uploading[item.id] }"
+          @dragenter.prevent="dragging = item.id"
+          @dragover.prevent="dragging = item.id"
+          @dragleave="onDragLeave($event, item.id)"
+          @drop.prevent="onDrop(item.id, $event)"
+        >
           <div class="prompt-row">
             <p class="prompt-text">{{ item.text }}</p>
             <span class="status" :class="item.status">{{ statusLabel(item.status) }}</span>
@@ -64,6 +74,7 @@
           <p class="prompt-meta">{{ formatDate(item.date) }} · #{{ item.id.slice(0, 8) }}</p>
 
           <img v-if="item.drawing" :src="item.drawing" :alt="item.text" class="existing-drawing" loading="lazy" />
+          <div v-else class="dropzone">Drop a drawing here</div>
 
           <div class="controls">
             <select
@@ -77,34 +88,31 @@
               <option value="done">Delivered</option>
             </select>
 
-            <label class="upload" :class="{ 'has-file': uploadFiles[item.id] }">
+            <label class="upload">
               <input type="file" accept="image/*" class="file-input" @change="onFileSelect(item.id, $event)" />
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <line x1="8" y1="2" x2="8" y2="11" /><polyline points="4,6 8,2 12,6" /><line x1="2" y1="14" x2="14" y2="14" />
               </svg>
-              <span>{{ uploadFiles[item.id] ? uploadFiles[item.id]!.name : (item.drawing ? 'Replace drawing' : 'Upload drawing') }}</span>
+              <span>{{ item.drawing ? 'Replace drawing' : 'Choose file' }}</span>
             </label>
-
-            <button
-              v-if="uploadFiles[item.id]"
-              class="btn btn-sm"
-              :disabled="uploading[item.id]"
-              @click="uploadDrawing(item.id)"
-            >
-              <span v-if="!uploading[item.id]">Save</span>
-              <span v-else class="spinner" aria-hidden="true"></span>
-            </button>
           </div>
 
           <Transition name="conf">
-            <p v-if="feedback[item.id]" class="feedback">{{ feedback[item.id] }}</p>
+            <p v-if="feedback[item.id]" class="feedback" :class="{ bad: feedback[item.id].startsWith('upload failed') }">{{ feedback[item.id] }}</p>
           </Transition>
+
+          <!-- Overlays -->
+          <div v-if="dragging === item.id && !uploading[item.id]" class="overlay drop-overlay">Drop to upload</div>
+          <div v-if="uploading[item.id]" class="overlay busy-overlay"><span class="spinner" aria-hidden="true"></span> Uploading…</div>
         </li>
       </ul>
     </section>
 
     <footer>
-      <NuxtLink to="/" class="home-link">← Home</NuxtLink>
+      <div class="foot-links">
+        <NuxtLink to="/" class="home-link">← Home</NuxtLink>
+        <button v-if="authed" class="home-link" type="button" @click="logout">Log out</button>
+      </div>
       <div class="credit">
         <a href="https://derrickkempf.com" target="_blank" rel="noopener">Derrick Kempf</a>
         <span>© {{ year }}</span>
@@ -118,19 +126,20 @@ interface Prompt {
   id: string; text: string; date: string; status: string; drawing: string | null
 }
 
-definePageMeta({ title: 'admin · dravver' })
+useHead({ title: 'Admin · dravver' })
 
 const secretInput = ref('')
 const authed = ref(false)
+const checking = ref(true)
 const authError = ref('')
 const authLoading = ref(false)
-const adminSecret = ref('')
 const prompts = ref<Prompt[]>([])
 const loading = ref(false)
+const loadError = ref('')
 const filter = ref<'all' | 'queued' | 'progress' | 'done'>('all')
-const uploadFiles = ref<Record<string, File | null>>({})
 const uploading = ref<Record<string, boolean>>({})
 const feedback = ref<Record<string, string>>({})
+const dragging = ref<string | null>(null)
 const year = new Date().getFullYear()
 
 const filters = [
@@ -151,35 +160,56 @@ const filteredPrompts = computed(() => {
   return prompts.value.filter(p => p.status === filter.value)
 })
 
+// ── Errors ───────────────────────────────────────────────
+function errMsg(e: unknown): string {
+  const err = e as { statusCode?: number; status?: number; data?: { message?: string; statusMessage?: string }; statusMessage?: string; message?: string }
+  const code = err?.statusCode ?? err?.status
+  if (code === 413) return 'file is too large for the server (413)'
+  const msg = err?.data?.message || err?.data?.statusMessage || err?.statusMessage || err?.message || 'unknown error'
+  return code ? `${msg} (${code})` : msg
+}
+
+/** If the session has expired, send the user back to the gate. Returns true if handled. */
+function handleExpired(e: unknown): boolean {
+  const code = (e as { statusCode?: number })?.statusCode
+  if (code !== 401) return false
+  authed.value = false
+  authError.value = 'session expired. enter the secret again.'
+  return true
+}
+
+// ── Auth (cookie lasts 30 days and renews each visit) ─────
 async function unlock() {
   if (!secretInput.value || authLoading.value) return
   authLoading.value = true
   authError.value = ''
   try {
-    await $fetch('/api/admin/upload', {
-      method: 'PATCH',
-      headers: { 'x-admin-secret': secretInput.value },
-      body: { id: '__test__', status: 'queued' },
-    })
-  } catch (e: unknown) {
-    const err = e as { statusCode?: number }
-    if (err?.statusCode === 401) {
-      authError.value = 'wrong secret.'
-      authLoading.value = false
-      return
-    }
+    await $fetch('/api/admin/login', { method: 'POST', body: { secret: secretInput.value } })
+    secretInput.value = ''
+    authed.value = true
+    await loadPrompts()
+  } catch (e) {
+    const code = (e as { statusCode?: number })?.statusCode
+    authError.value = code === 401 ? 'wrong secret.' : `couldn't log in: ${errMsg(e)}`
+  } finally {
+    authLoading.value = false
   }
-  adminSecret.value = secretInput.value
-  authed.value = true
-  authError.value = ''
-  authLoading.value = false
-  await loadPrompts()
 }
 
+async function logout() {
+  try { await $fetch('/api/admin/logout', { method: 'POST' }) } catch { /* ignore */ }
+  authed.value = false
+  prompts.value = []
+}
+
+// ── Data ─────────────────────────────────────────────────
 async function loadPrompts() {
   loading.value = true
+  loadError.value = ''
   try {
-    prompts.value = await $fetch<Prompt[]>('/api/prompts')
+    prompts.value = await $fetch<Prompt[]>('/api/prompts', { cache: 'no-store' })
+  } catch (e) {
+    loadError.value = `couldn't load prompts: ${errMsg(e)}`
   } finally {
     setTimeout(() => { loading.value = false }, 300)
   }
@@ -188,48 +218,95 @@ async function loadPrompts() {
 async function updateStatus(id: string, status: string) {
   feedback.value[id] = ''
   try {
-    await $fetch('/api/admin/upload', {
-      method: 'PATCH',
-      headers: { 'x-admin-secret': adminSecret.value },
-      body: { id, status },
-    })
+    await $fetch('/api/admin/upload', { method: 'PATCH', body: { id, status } })
     feedback.value[id] = `marked ${statusLabel(status).toLowerCase()}.`
     setTimeout(() => { feedback.value[id] = '' }, 2500)
     await loadPrompts()
-  } catch {
-    feedback.value[id] = 'failed to update. try again.'
+  } catch (e) {
+    if (!handleExpired(e)) feedback.value[id] = `failed to update: ${errMsg(e)}`
   }
 }
 
-function onFileSelect(id: string, event: Event) {
-  uploadFiles.value[id] = (event.target as HTMLInputElement).files?.[0] || null
-  feedback.value[id] = ''
+// ── Drag & drop / file upload ────────────────────────────
+function onDragLeave(e: DragEvent, id: string) {
+  const el = e.currentTarget as HTMLElement
+  if (!el.contains(e.relatedTarget as Node | null) && dragging.value === id) dragging.value = null
 }
 
-async function uploadDrawing(id: string) {
-  const file = uploadFiles.value[id]
-  if (!file) return
-  uploading.value[id] = true
+function onDrop(id: string, e: DragEvent) {
+  dragging.value = null
+  uploadFile(id, e.dataTransfer?.files?.[0])
+}
+
+function onFileSelect(id: string, e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  uploadFile(id, file)
+}
+
+async function uploadFile(id: string, file: File | null | undefined) {
+  if (!file || uploading.value[id]) return
   feedback.value[id] = ''
+  if (!file.type.startsWith('image/')) {
+    feedback.value[id] = "upload failed: that isn't an image"
+    return
+  }
+  uploading.value[id] = true
   try {
-    const base64 = await toBase64(file)
-    await $fetch('/api/admin/upload', {
-      method: 'POST',
-      headers: { 'x-admin-secret': adminSecret.value },
-      body: { id, imageBase64: base64, mimeType: file.type },
-    })
-    feedback.value[id] = 'saved.'
-    setTimeout(() => { feedback.value[id] = '' }, 2500)
-    uploadFiles.value[id] = null
+    const { base64, mimeType } = await prepareImage(file)
+    await $fetch('/api/admin/upload', { method: 'POST', body: { id, imageBase64: base64, mimeType } })
+    feedback.value[id] = "saved. it's on the Drawn page now."
+    setTimeout(() => { feedback.value[id] = '' }, 3500)
     await loadPrompts()
-  } catch {
-    feedback.value[id] = 'upload failed. try again.'
+  } catch (e) {
+    if (!handleExpired(e)) feedback.value[id] = `upload failed: ${errMsg(e)}`
   } finally {
     uploading.value[id] = false
   }
 }
 
-function toBase64(file: File): Promise<string> {
+// Vercel rejects request bodies over ~4.5 MB, and base64 adds a third, so big images
+// (phone photos, iPad exports) are shrunk in the browser before upload.
+const MAX_BYTES = 2.8 * 1024 * 1024
+const MAX_SIDE = 2400
+const PASSTHROUGH = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml']
+
+async function prepareImage(file: File): Promise<{ base64: string; mimeType: string }> {
+  if (file.size <= MAX_BYTES && PASSTHROUGH.includes(file.type)) {
+    return { base64: await toBase64(file), mimeType: file.type }
+  }
+
+  let bitmap: ImageBitmap
+  try {
+    bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
+  } catch {
+    throw new Error("couldn't read that image. try a JPG or PNG")
+  }
+
+  let scale = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height))
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const w = Math.max(1, Math.round(bitmap.width * scale))
+    const h = Math.max(1, Math.round(bitmap.height * scale))
+    const canvas = document.createElement('canvas')
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext('2d')!
+    ctx.fillStyle = '#fff'
+    ctx.fillRect(0, 0, w, h)
+    ctx.drawImage(bitmap, 0, 0, w, h)
+    const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, 'image/jpeg', attempt < 2 ? 0.9 : 0.8))
+    if (blob && blob.size <= MAX_BYTES) {
+      bitmap.close()
+      return { base64: await toBase64(blob), mimeType: 'image/jpeg' }
+    }
+    scale *= 0.8
+  }
+  bitmap.close()
+  throw new Error('image is too big even after shrinking it')
+}
+
+function toBase64(file: Blob): Promise<string> {
   return new Promise((res, rej) => {
     const r = new FileReader()
     r.onload = () => res((r.result as string).split(',')[1])
@@ -238,12 +315,34 @@ function toBase64(file: File): Promise<string> {
   })
 }
 
+// ── Helpers ──────────────────────────────────────────────
 function formatDate(d: string) {
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 }
 function statusLabel(s: string) {
   return ({ queued: 'Queued', progress: 'In progress', done: 'Delivered' } as Record<string, string>)[s] ?? s
 }
+
+// Stop the browser from navigating to a file that's dropped just outside a prompt
+const swallow = (e: DragEvent) => e.preventDefault()
+
+onMounted(async () => {
+  window.addEventListener('dragover', swallow)
+  window.addEventListener('drop', swallow)
+  try {
+    await $fetch('/api/admin/session')
+    authed.value = true
+    await loadPrompts()
+  } catch {
+    authed.value = false
+  } finally {
+    checking.value = false
+  }
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('dragover', swallow)
+  window.removeEventListener('drop', swallow)
+})
 </script>
 
 <style scoped>
@@ -361,9 +460,11 @@ h1 {
 .pill-count { font-variant-numeric: tabular-nums; opacity: .7; }
 
 .state { text-align: center; color: var(--color-muted); padding: var(--space-xl) 0; }
+.state.error { color: var(--color-error); }
 
 .prompt-list { list-style: none; }
 .prompt-item {
+  position: relative;
   padding: var(--space-lg) 0;
   border-top: 1px solid var(--color-border);
 }
@@ -422,7 +523,35 @@ h1 {
 .file-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 .upload { position: relative; }
 
-.feedback { margin-top: var(--space-sm); font-size: var(--font-size-sm); color: var(--color-fg); }
+.feedback { margin-top: var(--space-sm); font-size: var(--font-size-sm); color: var(--color-fg); overflow-wrap: anywhere; }
+.feedback.bad { color: var(--color-error); }
+
+.dropzone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 96px;
+  margin-top: var(--space-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.overlay {
+  position: absolute;
+  inset: 6px -10px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-weight: var(--fw-bold);
+  background: rgba(255, 255, 255, .93);
+  border-radius: var(--radius-md);
+}
+.drop-overlay { border: 2px dashed var(--color-fg); color: var(--color-fg); pointer-events: none; }
+.busy-overlay { color: var(--color-fg); }
 
 /* Footer */
 footer {
@@ -438,4 +567,7 @@ footer {
 footer a { color: var(--color-muted); }
 footer a:hover { color: var(--color-fg); }
 .credit { display: flex; gap: var(--space-md); }
+.foot-links { display: flex; gap: var(--space-lg); }
+.home-link { font: inherit; color: var(--color-muted); background: none; border: 0; padding: 0; cursor: pointer; }
+.home-link:hover { color: var(--color-fg); }
 </style>

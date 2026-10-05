@@ -37,18 +37,17 @@
       </Transition>
     </section>
 
-    <section class="queue" v-if="prompts.length">
+    <section class="queue" v-if="queue.length">
       <h2>Recent queue</h2>
       <TransitionGroup name="list" tag="ul" class="prompt-list">
-        <li v-for="item in prompts" :key="item.id" class="prompt-item">
+        <li v-for="item in queue" :key="item.id" class="prompt-item">
           <div class="prompt-row">
             <p class="prompt-text">{{ item.text }}</p>
             <span class="status" :class="item.status">{{ statusLabel(item.status) }}</span>
           </div>
           <time class="prompt-date" :datetime="item.date">{{ formatDate(item.date) }}</time>
           <div v-if="item.status === 'done'" class="prompt-result">
-            <img v-if="item.drawing" :src="item.drawing" :alt="item.text" loading="lazy" />
-            <p v-else class="placeholder">drawing coming soon.</p>
+            <p class="placeholder">drawing coming soon.</p>
           </div>
         </li>
       </TransitionGroup>
@@ -179,6 +178,8 @@ function closeInfo() {
 
 const { data, refresh } = await useFetch<Prompt[]>('/api/prompts')
 const prompts = computed(() => data.value || [])
+// Prompts that have a drawing move over to the Drawn page
+const queue = computed(() => prompts.value.filter(p => !p.drawing))
 const drawnCount = computed(() => prompts.value.filter(p => p.drawing).length)
 const canSubmit = computed(() => prompt.value.trim().length > 0 && prompt.value.length <= MAX_CHARS)
 
