@@ -540,7 +540,7 @@ footer a:hover { color: var(--color-fg); }
   letter-spacing: .12em;
   color: var(--color-muted);
 }
-.modal p, .modal li { font-size: var(--font-size-sm); line-height: 1.6; color: var(--color-fg); }
+.modal p, .modal li { font-size: var(--font-size-md); line-height: 1.6; color: var(--color-fg); }
 .modal p + p, .modal p + ul, .modal ol + p { margin-top: var(--space-sm); }
 .modal ol, .modal ul { padding-left: 1.25em; }
 .modal li + li { margin-top: 4px; }
