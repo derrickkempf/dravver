@@ -64,9 +64,82 @@
     </section>
 
     <footer>
-      <a href="https://derrickkempf.com" target="_blank" rel="noopener">Derrick Kempf</a>
-      <span>© {{ year }}</span>
+      <button
+        ref="infoBtn"
+        class="info-btn"
+        type="button"
+        aria-label="About this site"
+        aria-haspopup="dialog"
+        :aria-expanded="showInfo"
+        @click="openInfo"
+      >
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9.25" />
+          <path d="M12 11v5.25" />
+          <circle cx="12" cy="7.9" r=".6" fill="currentColor" />
+        </svg>
+      </button>
+      <div class="credit">
+        <a href="https://derrickkempf.com" target="_blank" rel="noopener">Derrick Kempf</a>
+        <span>© {{ year }}</span>
+      </div>
     </footer>
+
+    <Transition name="modal">
+      <div v-if="showInfo" class="modal-backdrop" @click.self="closeInfo">
+        <div
+          ref="dialogEl"
+          class="modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="info-title"
+          tabindex="-1"
+          @keydown.esc="closeInfo"
+        >
+          <button class="modal-close" type="button" aria-label="Close" @click="closeInfo">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+
+          <h2 id="info-title">About dravver</h2>
+          <p class="lede">You type the prompt. I draw it. By hand. You'll get it when you get it.</p>
+
+          <h3>Why</h3>
+          <p>
+            AI is generating graphics whether we participate or not. So this is the alternative:
+            one input field, one human, and a response time best described as “organic.”
+            No API. No model. No latency optimizations. Just a guy with a pen.
+          </p>
+
+          <h3>How it works</h3>
+          <ol>
+            <li>Submit your prompt.</li>
+            <li>It gets added to the queue, which is a notebook on a desk.</li>
+            <li>The notebook gets drawn from at some point.</li>
+            <li>You receive the drawing at an undefined later date.</li>
+          </ol>
+          <p>The drawing is real. Made by hand. Yours. This is not a bug, it's the feature.</p>
+
+          <h3>Delivery</h3>
+          <p>
+            Times vary with queue depth, complexity, whether I'm traveling, and whether the prompt
+            made me laugh. Funnier prompts tend to get drawn faster. That's not a policy, it's just how it goes.
+          </p>
+
+          <h3>What to submit</h3>
+          <p>Concepts, not scenes. One idea, compressed.</p>
+          <ul>
+            <li><strong>Works well:</strong> “Sell your sawdust,” “Build once, sell twice,” “Consistency beats intensity.”</li>
+            <li><strong>Less useful:</strong> “Draw my cat,” scenes with specific lighting, anything due Tuesday.</li>
+          </ul>
+
+          <p class="modal-foot">
+            A satirical fork of <a href="https://github.com/visualizevalue/vvriter" target="_blank" rel="noopener">vvriter</a>,
+            built by <a href="https://www.derrickkempf.com" target="_blank" rel="noopener">Derrick Kempf</a>.
+            <a href="https://github.com/derrickkempf/dravver" target="_blank" rel="noopener">View on GitHub</a>.
+          </p>
+        </div>
+      </div>
+    </Transition>
   </main>
 </template>
 
@@ -108,6 +181,23 @@ function nextDewd() {
   const img = new Image()
   img.onload = () => { currentDewd.value = n; tick.value++ }
   img.src = dewdUrl(n)
+}
+
+// Info modal
+const showInfo = ref(false)
+const infoBtn = ref<HTMLButtonElement | null>(null)
+const dialogEl = ref<HTMLDivElement | null>(null)
+
+async function openInfo() {
+  showInfo.value = true
+  document.body.style.overflow = 'hidden'
+  await nextTick()
+  dialogEl.value?.focus()
+}
+function closeInfo() {
+  showInfo.value = false
+  document.body.style.overflow = ''
+  infoBtn.value?.focus()
 }
 
 const { data, refresh } = await useFetch<Prompt[]>('/api/prompts')
@@ -188,6 +278,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   if (confTimer) clearTimeout(confTimer)
   if (dewdTimer) clearInterval(dewdTimer)
+  document.body.style.overflow = ''
 })
 </script>
 
@@ -367,12 +458,114 @@ h1 {
 footer {
   margin-top: auto;
   display: flex;
-  justify-content: space-between;
-  padding: var(--space-lg) 0;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-lg) 0 calc(var(--space-lg) + env(safe-area-inset-bottom, 0px));
   font-size: var(--font-size-sm);
   color: var(--color-muted);
 }
-footer a { color: var(--color-fg); }
+footer a { color: var(--color-muted); text-decoration: none; }
+footer a:hover { color: var(--color-fg); }
+.credit { display: flex; gap: var(--space-md); }
+
+.info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  color: #9a9a9a;
+  background: none;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+.info-btn:hover { color: var(--color-fg); }
+.info-btn:active { transform: scale(.94); }
+.info-btn:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
+
+/* Modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  background: rgba(0, 0, 0, .45);
+}
+.modal {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  max-height: min(86dvh, 720px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-xl) var(--space-xl) var(--space-lg);
+  color: var(--color-fg);
+  background: var(--color-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .25);
+  outline: none;
+}
+.modal h2 {
+  font-size: 1.6rem;
+  font-weight: var(--fw-black);
+  letter-spacing: -.02em;
+  line-height: 1.1;
+  margin: 0 var(--space-xl) var(--space-sm) 0;
+  text-transform: none;
+  color: var(--color-fg);
+}
+.modal .lede { font-size: var(--font-size-base); margin-bottom: var(--space-md); }
+.modal h3 {
+  margin: var(--space-lg) 0 var(--space-xs);
+  font-size: var(--font-size-xs);
+  font-weight: var(--fw-bold);
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  color: var(--color-muted);
+}
+.modal p, .modal li { font-size: var(--font-size-sm); line-height: 1.6; color: var(--color-fg); }
+.modal p + p, .modal p + ul, .modal ol + p { margin-top: var(--space-sm); }
+.modal ol, .modal ul { padding-left: 1.25em; }
+.modal li + li { margin-top: 4px; }
+.modal a { color: var(--color-fg); text-decoration: underline; text-underline-offset: 2px; }
+.modal-foot {
+  margin-top: var(--space-lg);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--color-border);
+  color: var(--color-muted);
+}
+.modal-foot a { color: inherit; }
+.modal-foot a:hover { color: var(--color-fg); }
+
+.modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  color: var(--color-muted);
+  background: none;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.modal-close:hover { color: var(--color-fg); background: var(--color-surface); }
+
+.modal-enter-active, .modal-leave-active { transition: opacity var(--dur-base) var(--ease-out); }
+.modal-enter-active .modal, .modal-leave-active .modal { transition: transform var(--dur-base) var(--ease-out); }
+.modal-enter-from, .modal-leave-to { opacity: 0; }
+.modal-enter-from .modal, .modal-leave-to .modal { transform: translateY(12px) scale(.98); }
 
 .list-enter-active, .list-leave-active { transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out); }
 .list-enter-from, .list-leave-to { opacity: 0; transform: translateY(8px); }
