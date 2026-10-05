@@ -1,107 +1,32 @@
 // server/api/prompts.ts
-// GET  — returns all prompts
-// POST — adds a new prompt from a visitor
-//
-// Persistence:
-//   • Uses Upstash Redis when UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN are set
-//     (the KV_REST_API_URL / KV_REST_API_TOKEN names Vercel's Upstash integration creates also work).
-//   • In local dev with no Redis configured, falls back to an in-memory store.
-//   • In production it NEVER falls back to memory. Serverless instances don't share memory, so
-//     a prompt saved on one instance would be invisible from another (e.g. phone vs desktop).
-//     Instead the API returns a 503 so the problem is loud instead of silent.
+// GET  — returns prompts (public: newest 50 without a drawing + every drawn one; admins can pass ?all=1)
+// POST — adds a new prompt from a visitor, with spam protection
 
-import { Redis } from '@upstash/redis'
+import { createHash } from 'node:crypto'
+import { loadPrompts, savePrompts, normalizeText, MAX_UNDRAWN } from '../utils/promptStore'
+import type { Prompt } from '../utils/promptStore'
+import { rateLimit } from '../utils/rateLimit'
+import { isAdmin } from '../utils/adminAuth'
 
-const STORE_KEY = 'dravver:prompts'
+const MAX_CHARS = 280
+const PUBLIC_QUEUE_LIMIT = 50          // homepage only ever loads the latest 50 un-drawn prompts
+const PER_IP_LIMIT = 5                 // attempts per visitor...
+const PER_IP_WINDOW = 10 * 60          // ...per 10 minutes
+const GLOBAL_LIMIT = 120               // attempts across everyone...
+const GLOBAL_WINDOW = 60 * 60          // ...per hour (last-resort cap against distributed floods)
+const MIN_FILL_MS = 1200               // a human can't load the page and submit faster than this
 
-export interface Prompt {
-  id: string
-  text: string
-  date: string
-  status: string
-  drawing: string | null
+// Links and handles: the usual spam payload. Prompts are short ideas, so we just refuse them.
+const LINKISH = /(https?:\/\/|www\.|t\.me\/|@[a-z0-9_]{3,}|\b[a-z0-9-]{2,}\.(com|net|org|io|ru|cn|xyz|top|info|biz|link|site|online|shop|app|dev|click|club|live|store|tech|vip|work|bet|casino|loan)\b)/i
+
+function reject(statusCode: number, message: string) {
+  return createError({ statusCode, statusMessage: message, message })
 }
 
-const seedPrompts: Prompt[] = [
-  { id: 'p_001', text: 'sell your sawdust',                    date: '2025-03-18', status: 'done',     drawing: null },
-  { id: 'p_002', text: 'build once, sell twice',               date: '2025-03-21', status: 'progress', drawing: null },
-  { id: 'p_003', text: 'the moat is the person, not the file', date: '2025-03-23', status: 'queued',   drawing: null },
-]
-
-// ── In-memory fallback ────────────────────────────────────────────
-// Lives for the lifetime of the server instance (per Vercel cold start).
-// Dev only. In production the store must be Redis (see header comment).
-let memoryStore: Prompt[] | null = null
-function getMemory(): Prompt[] {
-  if (memoryStore === null) memoryStore = [...seedPrompts]
-  return memoryStore
-}
-function setMemory(p: Prompt[]) { memoryStore = p }
-
-const IS_PROD = process.env.NODE_ENV === 'production' || !!process.env.VERCEL
-
-function redisConfig() {
-  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN
-  return url && token ? { url, token } : null
-}
-
-function storageError(detail: string) {
-  // eslint-disable-next-line no-console
-  console.error(`[dravver] storage unavailable: ${detail}`)
-  return createError({
-    statusCode: 503,
-    statusMessage: 'storage not configured',
-    message: detail,
-  })
-}
-
-let warned = false
-function warnDevMemory() {
-  if (warned) return
-  warned = true
-  // eslint-disable-next-line no-console
-  console.warn('[dravver] Redis not configured, using in-memory store (dev only).')
-}
-
-export async function load(): Promise<Prompt[]> {
-  const cfg = redisConfig()
-  if (!cfg) {
-    if (IS_PROD) throw storageError('Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN in the Vercel project env vars.')
-    warnDevMemory()
-    return getMemory()
-  }
-  try {
-    const redis = new Redis(cfg)
-    const data = await redis.get<Prompt[]>(STORE_KEY)
-    if (data === null || data === undefined) {
-      await redis.set(STORE_KEY, JSON.stringify(seedPrompts))
-      return seedPrompts
-    }
-    return typeof data === 'string' ? JSON.parse(data) : data
-  } catch (err) {
-    if (IS_PROD) throw storageError(`Redis request failed: ${(err as Error).message ?? err}`)
-    warnDevMemory()
-    return getMemory()
-  }
-}
-
-export async function save(prompts: Prompt[]): Promise<void> {
-  const cfg = redisConfig()
-  if (!cfg) {
-    if (IS_PROD) throw storageError('Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN in the Vercel project env vars.')
-    warnDevMemory()
-    setMemory(prompts)
-    return
-  }
-  try {
-    const redis = new Redis(cfg)
-    await redis.set(STORE_KEY, JSON.stringify(prompts))
-  } catch (err) {
-    if (IS_PROD) throw storageError(`Redis request failed: ${(err as Error).message ?? err}`)
-    warnDevMemory()
-    setMemory(prompts)
-  }
+function visitorKey(event: Parameters<typeof getRequestIP>[0]): string {
+  const ip = getRequestIP(event, { xForwardedFor: true }) || 'unknown'
+  // Hash it so raw IP addresses never end up in the database
+  return createHash('sha256').update(`${ip}|${useRuntimeConfig().adminSecret}`).digest('hex').slice(0, 24)
 }
 
 export default defineEventHandler(async (event) => {
@@ -109,18 +34,57 @@ export default defineEventHandler(async (event) => {
   setHeader(event, 'Cache-Control', 'no-store')
 
   if (method === 'GET') {
-    return await load()
+    const prompts = await loadPrompts()
+    if (getQuery(event).all && isAdmin(event)) return prompts
+    let undrawn = 0
+    return prompts.filter((p) => (p.drawing ? true : undrawn++ < PUBLIC_QUEUE_LIMIT))
   }
 
   if (method === 'POST') {
     const body = await readBody(event)
-    const text = (body?.text || '').toString().trim()
-    if (!text) throw createError({ statusCode: 400, statusMessage: 'text required' })
-    if (text.length > 280) {
-      throw createError({ statusCode: 400, statusMessage: 'text too long (max 280)' })
+
+    // 1) Rate limits (cheap, so they run before anything touches the database)
+    const perIp = await rateLimit(`ip:${visitorKey(event)}`, PER_IP_LIMIT, PER_IP_WINDOW)
+    if (!perIp.ok) {
+      const mins = Math.max(1, Math.ceil(perIp.retryAfter / 60))
+      setHeader(event, 'Retry-After', String(perIp.retryAfter))
+      throw reject(429, `slow down. try again in ${mins} minute${mins === 1 ? '' : 's'}.`)
+    }
+    const global = await rateLimit('global', GLOBAL_LIMIT, GLOBAL_WINDOW)
+    if (!global.ok) {
+      setHeader(event, 'Retry-After', String(global.retryAfter))
+      throw reject(429, 'the notebook is swamped right now. try again later.')
     }
 
-    const prompts = await load()
+    // 2) Bot traps: bots fill in the hidden field and submit instantly. Pretend it worked.
+    const fillMs = body?.t
+    if (typeof fillMs !== 'number' || !Number.isFinite(fillMs)) {
+      throw reject(400, 'please reload the page and try again.')
+    }
+    if ((typeof body?.website === 'string' && body.website.trim() !== '') || fillMs < MIN_FILL_MS) {
+      return { id: `p_${Date.now()}`, text: '', date: new Date().toISOString(), status: 'queued', drawing: null }
+    }
+
+    // 3) Clean up and validate the text
+    const text = (body?.text ?? '')
+      .toString()
+      .replace(/[\u0000-\u001F\u007F\u200B-\u200F\u2028-\u202F\u2060\uFEFF]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+    if (!text) throw reject(400, 'text required')
+    if (text.length > MAX_CHARS) throw reject(400, `text too long (max ${MAX_CHARS})`)
+    if (!/[\p{L}\p{N}]{2,}/u.test(text)) throw reject(400, 'that needs a few more letters.')
+    if (LINKISH.test(text)) throw reject(400, "links and handles aren't allowed in prompts.")
+
+    // 4) No duplicates
+    const prompts = await loadPrompts()
+    const norm = normalizeText(text)
+    const dup = prompts.find((p) => normalizeText(p.text) === norm)
+    if (dup) {
+      throw reject(409, dup.drawing ? "that one's already been drawn. check the Drawn page." : "that one's already in the queue.")
+    }
+
+    // 5) Save, trimming the oldest un-drawn prompts if the store is getting huge
     const entry: Prompt = {
       id: `p_${Date.now()}`,
       text,
@@ -128,10 +92,16 @@ export default defineEventHandler(async (event) => {
       status: 'queued',
       drawing: null,
     }
-    prompts.unshift(entry)
-    await save(prompts)
+    let next = [entry, ...prompts]
+    let undrawn = next.filter((p) => !p.drawing).length
+    if (undrawn > MAX_UNDRAWN) {
+      for (let i = next.length - 1; i >= 0 && undrawn > MAX_UNDRAWN; i--) {
+        if (!next[i].drawing && next[i].status === 'queued') { next.splice(i, 1); undrawn-- }
+      }
+    }
+    await savePrompts(next)
     return entry
   }
 
-  throw createError({ statusCode: 405, statusMessage: 'method not allowed' })
+  throw reject(405, 'method not allowed')
 })

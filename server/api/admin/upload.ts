@@ -1,13 +1,14 @@
 // server/api/admin/upload.ts
 // PATCH — update prompt status
+// DELETE — remove a prompt (and its drawing file)
 // POST  — upload drawing image → Vercel Blob (private by default; see utils/blobAccess.ts),
 //         reference saved with the prompt, status set to "done"
 //
 // Protected by the admin session cookie (or the x-admin-secret header).
 
 import { put, del } from '@vercel/blob'
-import { load, save } from '../prompts'
-import type { Prompt } from '../prompts'
+import { loadPrompts, savePrompts } from '../../utils/promptStore'
+import type { Prompt } from '../../utils/promptStore'
 import { requireAdmin } from '../../utils/adminAuth'
 import { blobAccess, blobKeyFromRef, drawingRef, DRAWING_PREFIX } from '../../utils/blobAccess'
 
@@ -31,13 +32,13 @@ export default defineEventHandler(async (event) => {
     const body = await readBody(event)
     const { id, status, drawing } = body
 
-    const prompts = await load()
+    const prompts = await loadPrompts()
     const idx = prompts.findIndex((p: Prompt) => p.id === id)
     if (idx === -1) throw createError({ statusCode: 404, message: 'Prompt not found' })
 
     if (status)  prompts[idx].status  = status
     if (drawing) prompts[idx].drawing = drawing
-    await save(prompts)
+    await savePrompts(prompts)
     return prompts[idx]
   }
 
@@ -57,7 +58,7 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 500, statusMessage: 'Blob not configured', message: 'BLOB_READ_WRITE_TOKEN is not set on the server' })
     }
 
-    const prompts = await load()
+    const prompts = await loadPrompts()
     const idx = prompts.findIndex((p: Prompt) => p.id === id)
     if (idx === -1) throw createError({ statusCode: 404, message: 'Prompt not found' })
 
@@ -86,13 +87,28 @@ export default defineEventHandler(async (event) => {
 
     prompts[idx].drawing = url
     prompts[idx].status  = 'done'
-    await save(prompts)
+    await savePrompts(prompts)
 
     // Tidy up the replaced file (best effort)
     const oldKey = previous !== url ? blobKeyFromRef(previous) : null
     if (oldKey) del(oldKey, { token: config.blobReadWriteToken }).catch(() => {})
 
     return prompts[idx]
+  }
+
+  // DELETE — remove a prompt and its stored drawing
+  if (method === 'DELETE') {
+    const body = await readBody(event)
+    const prompts = await loadPrompts()
+    const idx = prompts.findIndex((p: Prompt) => p.id === body?.id)
+    if (idx === -1) throw createError({ statusCode: 404, message: 'Prompt not found' })
+
+    const [removed] = prompts.splice(idx, 1)
+    await savePrompts(prompts)
+
+    const key = blobKeyFromRef(removed.drawing)
+    if (key) del(key, { token: config.blobReadWriteToken }).catch(() => {})
+    return { ok: true }
   }
 
   throw createError({ statusCode: 405, message: 'method not allowed' })

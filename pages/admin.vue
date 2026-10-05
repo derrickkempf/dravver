@@ -52,6 +52,10 @@
         </button>
       </div>
 
+      <Transition name="conf">
+        <p v-if="notice" class="notice" role="status">{{ notice }}</p>
+      </Transition>
+
       <p v-if="loadError" class="state error">{{ loadError }}</p>
       <p v-else-if="loading && !prompts.length" class="state">loading…</p>
       <p v-else-if="!filteredPrompts.length" class="state">No prompts in this view.</p>
@@ -95,6 +99,13 @@
               </svg>
               <span>{{ item.drawing ? 'Replace drawing' : 'Choose file' }}</span>
             </label>
+
+            <button
+              class="del"
+              :class="{ armed: armedDelete === item.id }"
+              type="button"
+              @click="deletePrompt(item)"
+            >{{ armedDelete === item.id ? 'Tap again to delete' : 'Delete' }}</button>
           </div>
 
           <Transition name="conf">
@@ -140,6 +151,9 @@ const filter = ref<'all' | 'queued' | 'progress' | 'done'>('all')
 const uploading = ref<Record<string, boolean>>({})
 const feedback = ref<Record<string, string>>({})
 const dragging = ref<string | null>(null)
+const armedDelete = ref<string | null>(null)
+const notice = ref('')
+let armTimer: ReturnType<typeof setTimeout> | null = null
 const year = new Date().getFullYear()
 
 const filters = [
@@ -207,7 +221,7 @@ async function loadPrompts() {
   loading.value = true
   loadError.value = ''
   try {
-    prompts.value = await $fetch<Prompt[]>('/api/prompts', { cache: 'no-store' })
+    prompts.value = await $fetch<Prompt[]>('/api/prompts?all=1', { cache: 'no-store' })
   } catch (e) {
     loadError.value = `couldn't load prompts: ${errMsg(e)}`
   } finally {
@@ -224,6 +238,27 @@ async function updateStatus(id: string, status: string) {
     await loadPrompts()
   } catch (e) {
     if (!handleExpired(e)) feedback.value[id] = `failed to update: ${errMsg(e)}`
+  }
+}
+
+// Two-tap delete: the first tap arms the button, the second (within 3s) deletes.
+async function deletePrompt(item: Prompt) {
+  if (armedDelete.value !== item.id) {
+    armedDelete.value = item.id
+    if (armTimer) clearTimeout(armTimer)
+    armTimer = setTimeout(() => { armedDelete.value = null }, 3000)
+    return
+  }
+  armedDelete.value = null
+  if (armTimer) clearTimeout(armTimer)
+  try {
+    await $fetch('/api/admin/upload', { method: 'DELETE', body: { id: item.id } })
+    const short = item.text.length > 40 ? item.text.slice(0, 40) + '…' : item.text
+    notice.value = `deleted “${short}”`
+    setTimeout(() => { notice.value = '' }, 3500)
+    await loadPrompts()
+  } catch (e) {
+    if (!handleExpired(e)) feedback.value[item.id] = `failed to delete: ${errMsg(e)}`
   }
 }
 
@@ -525,6 +560,23 @@ h1 {
 
 .feedback { margin-top: var(--space-sm); font-size: var(--font-size-sm); color: var(--color-fg); overflow-wrap: anywhere; }
 .feedback.bad { color: var(--color-error); }
+
+.notice { text-align: center; margin: calc(-1 * var(--space-md)) 0 var(--space-lg); font-size: var(--font-size-sm); color: var(--color-fg); }
+
+.del {
+  height: 38px;
+  padding: 0 14px;
+  margin-left: auto;
+  font-size: var(--font-size-sm);
+  font-weight: var(--fw-bold);
+  color: var(--color-muted);
+  background: none;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+.del:hover { color: var(--color-error); border-color: var(--color-error); }
+.del.armed { color: #fff; background: var(--color-error); border-color: var(--color-error); }
 
 .dropzone {
   display: flex;

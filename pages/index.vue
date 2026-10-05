@@ -21,6 +21,16 @@
           @keydown.ctrl.enter.prevent="submit"
           @input="autoGrow"
         ></textarea>
+        <!-- Honeypot: invisible to people, irresistible to bots -->
+        <input
+          v-model="trap"
+          class="trap"
+          type="text"
+          name="website"
+          tabindex="-1"
+          autocomplete="off"
+          aria-hidden="true"
+        />
         <div class="field-foot">
           <span class="counter" :class="{ near: prompt.length > MAX_CHARS * 0.85, full: prompt.length === MAX_CHARS }">
             {{ prompt.length }} / {{ MAX_CHARS }}
@@ -154,6 +164,8 @@ const MAX_CHARS = 280
 const prompt = ref('')
 const confirmation = ref('')
 const submitting = ref(false)
+const trap = ref('')
+let loadedAt = 0
 const textareaEl = ref<HTMLTextAreaElement | null>(null)
 
 let confTimer: ReturnType<typeof setTimeout> | null = null
@@ -202,7 +214,7 @@ async function submit() {
   if (!val || submitting.value) return
   submitting.value = true
   try {
-    await $fetch('/api/prompts', { method: 'POST', body: { text: val } })
+    await $fetch('/api/prompts', { method: 'POST', body: { text: val, website: trap.value, t: Date.now() - loadedAt } })
     await refresh()
     confirmation.value = responses[idx++ % responses.length]
     if (confTimer) clearTimeout(confTimer)
@@ -250,6 +262,7 @@ function statusLabel(s: string) {
 }
 
 onMounted(() => {
+  loadedAt = Date.now()
   autoGrow()
   refresh() // always pull fresh data after load, never trust the server-rendered copy
 })
@@ -292,6 +305,15 @@ h1 {
   line-height: 1.55;
   max-width: 46ch;
   margin: 0 auto var(--space-xl);
+}
+
+.trap {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .field textarea {
