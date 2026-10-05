@@ -3,9 +3,12 @@
 // POST — adds a new prompt from a visitor
 //
 // Persistence:
-//   • If UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are set, uses Upstash Redis.
-//   • Otherwise falls back to an in-memory store so the site is usable in dev
-//     and so missing env vars surface as a clear warning instead of a 500.
+//   • Uses Upstash Redis when UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN are set
+//     (the KV_REST_API_URL / KV_REST_API_TOKEN names Vercel's Upstash integration creates also work).
+//   • In local dev with no Redis configured, falls back to an in-memory store.
+//   • In production it NEVER falls back to memory. Serverless instances don't share memory, so
+//     a prompt saved on one instance would be invisible from another (e.g. phone vs desktop).
+//     Instead the API returns a 503 so the problem is loud instead of silent.
 
 import { Redis } from '@upstash/redis'
 
@@ -27,7 +30,7 @@ const seedPrompts: Prompt[] = [
 
 // ── In-memory fallback ────────────────────────────────────────────
 // Lives for the lifetime of the server instance (per Vercel cold start).
-// Plenty good for dev or for a graceful prod fallback while Upstash is wired up.
+// Dev only. In production the store must be Redis (see header comment).
 let memoryStore: Prompt[] | null = null
 function getMemory(): Prompt[] {
   if (memoryStore === null) memoryStore = [...seedPrompts]
@@ -35,36 +38,41 @@ function getMemory(): Prompt[] {
 }
 function setMemory(p: Prompt[]) { memoryStore = p }
 
-function hasUpstash(): boolean {
-  return !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
+const IS_PROD = process.env.NODE_ENV === 'production' || !!process.env.VERCEL
+
+function redisConfig() {
+  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN
+  return url && token ? { url, token } : null
 }
 
-function getRedis() {
-  return new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL!,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+function storageError(detail: string) {
+  // eslint-disable-next-line no-console
+  console.error(`[dravver] storage unavailable: ${detail}`)
+  return createError({
+    statusCode: 503,
+    statusMessage: 'storage not configured',
+    message: detail,
   })
 }
 
 let warned = false
-function warnNoUpstash(err?: unknown) {
+function warnDevMemory() {
   if (warned) return
   warned = true
   // eslint-disable-next-line no-console
-  console.warn(
-    '[dravver] Upstash not configured — using in-memory store. ' +
-    'Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN to persist prompts.' +
-    (err ? ` (cause: ${(err as Error).message ?? err})` : ''),
-  )
+  console.warn('[dravver] Redis not configured, using in-memory store (dev only).')
 }
 
 export async function load(): Promise<Prompt[]> {
-  if (!hasUpstash()) {
-    warnNoUpstash()
+  const cfg = redisConfig()
+  if (!cfg) {
+    if (IS_PROD) throw storageError('Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN in the Vercel project env vars.')
+    warnDevMemory()
     return getMemory()
   }
   try {
-    const redis = getRedis()
+    const redis = new Redis(cfg)
     const data = await redis.get<Prompt[]>(STORE_KEY)
     if (data === null || data === undefined) {
       await redis.set(STORE_KEY, JSON.stringify(seedPrompts))
@@ -72,28 +80,33 @@ export async function load(): Promise<Prompt[]> {
     }
     return typeof data === 'string' ? JSON.parse(data) : data
   } catch (err) {
-    warnNoUpstash(err)
+    if (IS_PROD) throw storageError(`Redis request failed: ${(err as Error).message ?? err}`)
+    warnDevMemory()
     return getMemory()
   }
 }
 
 export async function save(prompts: Prompt[]): Promise<void> {
-  if (!hasUpstash()) {
-    warnNoUpstash()
+  const cfg = redisConfig()
+  if (!cfg) {
+    if (IS_PROD) throw storageError('Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN in the Vercel project env vars.')
+    warnDevMemory()
     setMemory(prompts)
     return
   }
   try {
-    const redis = getRedis()
+    const redis = new Redis(cfg)
     await redis.set(STORE_KEY, JSON.stringify(prompts))
   } catch (err) {
-    warnNoUpstash(err)
+    if (IS_PROD) throw storageError(`Redis request failed: ${(err as Error).message ?? err}`)
+    warnDevMemory()
     setMemory(prompts)
   }
 }
 
 export default defineEventHandler(async (event) => {
   const method = event.method
+  setHeader(event, 'Cache-Control', 'no-store')
 
   if (method === 'GET') {
     return await load()
