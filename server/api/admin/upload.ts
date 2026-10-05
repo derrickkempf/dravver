@@ -1,6 +1,7 @@
 // server/api/admin/upload.ts
 // PATCH — update prompt status
-// POST  — upload drawing image → Vercel Blob, URL saved with the prompt, status set to "done"
+// POST  — upload drawing image → Vercel Blob (private by default; see utils/blobAccess.ts),
+//         reference saved with the prompt, status set to "done"
 //
 // Protected by the admin session cookie (or the x-admin-secret header).
 
@@ -8,6 +9,7 @@ import { put, del } from '@vercel/blob'
 import { load, save } from '../prompts'
 import type { Prompt } from '../prompts'
 import { requireAdmin } from '../../utils/adminAuth'
+import { blobAccess, blobKeyFromRef, drawingRef, DRAWING_PREFIX } from '../../utils/blobAccess'
 
 const EXT: Record<string, string> = {
   'image/jpeg': 'jpg',
@@ -60,18 +62,18 @@ export default defineEventHandler(async (event) => {
     if (idx === -1) throw createError({ statusCode: 404, message: 'Prompt not found' })
 
     const buffer = Buffer.from(imageBase64, 'base64')
-    const filename = `drawings/${id}.${EXT[type] || 'jpg'}`
+    const filename = `${DRAWING_PREFIX}${id}.${EXT[type] || 'jpg'}`
     const previous = prompts[idx].drawing
 
     let url: string
     try {
       const blob = await put(filename, buffer, {
-        access: 'public',
+        access: blobAccess(),
         token: config.blobReadWriteToken,
         contentType: type,
         addRandomSuffix: true,
       })
-      url = blob.url
+      url = drawingRef(blob)
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('[dravver] blob upload failed:', err)
@@ -87,9 +89,8 @@ export default defineEventHandler(async (event) => {
     await save(prompts)
 
     // Tidy up the replaced file (best effort)
-    if (previous && previous !== url && previous.includes('blob.vercel-storage.com')) {
-      del(previous, { token: config.blobReadWriteToken }).catch(() => {})
-    }
+    const oldKey = previous !== url ? blobKeyFromRef(previous) : null
+    if (oldKey) del(oldKey, { token: config.blobReadWriteToken }).catch(() => {})
 
     return prompts[idx]
   }
